@@ -34,7 +34,7 @@ type TaskItemProps = {
   onRename: (title: string) => void
   onToggle: () => void
   onDelete: () => void
-  onAddSubtask: () => string
+  onAddSubtask: () => string | Promise<string>
   onRenameSubtask: (subtaskId: string, title: string) => void
   onToggleSubtask: (subtaskId: string) => void
   onDeleteSubtask: (subtaskId: string) => void
@@ -59,9 +59,9 @@ export function TaskItem({
   const isEditingTitle = editingId === task.id
   const hasSubtasks = progress.hasSubtasks
 
-  function addAndEditSubtask() {
-    const id = onAddSubtask()
-    onEditingIdChange(id)
+  async function addAndEditSubtask() {
+    const id = await onAddSubtask()
+    if (id) onEditingIdChange(id)
   }
 
   return (

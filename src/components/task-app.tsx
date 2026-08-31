@@ -69,10 +69,10 @@ export function TaskApp() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
 
-  const createTask = useCallback(() => {
+  const createTask = useCallback(async () => {
     if (!workspace) return
-    const id = addTask()
-    setEditingId(id)
+    const id = await addTask()
+    if (id) setEditingId(id)
   }, [addTask, workspace])
 
   const createWorkspace = useCallback(() => {

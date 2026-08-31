@@ -4,6 +4,8 @@ import { formatMonthYearFromKey, formatShortDate, todayKey } from "@/lib/dates"
 import { getDayProgress, type Workspace } from "@/lib/tasks"
 import { cn } from "@/lib/utils"
 
+import { UserButton } from "@clerk/nextjs"
+
 import { MonthCalendar } from "@/components/month-calendar"
 import { ThemeToggle } from "@/components/theme-toggle"
 
@@ -32,7 +34,10 @@ export function WorkspaceSidebar({
             Workspaces by day
           </p>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <UserButton />
+        </div>
       </div>
 
       <MonthCalendar

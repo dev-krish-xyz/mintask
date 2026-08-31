@@ -1,328 +1,152 @@
 "use client"
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { arrayMove } from "@dnd-kit/sortable"
 
+import {
+  addIdeaAction,
+  addSubtaskAction,
+  addTaskAction,
+  createWorkspaceAction,
+  deleteIdeaAction,
+  deleteSubtaskAction,
+  deleteTaskAction,
+  deleteWorkspaceAction,
+  listWorkspaces,
+  renameWorkspaceAction,
+  reorderSubtasksAction,
+  toggleSubtaskAction,
+  toggleTaskAction,
+  updateIdeaAction,
+  updateSubtaskTitleAction,
+  updateTaskTitleAction,
+} from "@/actions/store"
 import { todayKey } from "@/lib/dates"
-import {
-  getServerStoreSnapshot,
-  getStoreSnapshot,
-  parseStore,
-  subscribeToStore,
-  writeStore,
-} from "@/lib/storage"
-import {
-  createIdea,
-  createSubtask,
-  createTask,
-  createWorkspace,
-  type Task,
-  type Workspace,
-} from "@/lib/tasks"
+import type { Task, Workspace } from "@/lib/tasks"
 
-const subscribeToIsClient = () => () => {}
-
-function useIsClient() {
-  return useSyncExternalStore(
-    subscribeToIsClient,
-    () => true,
-    () => false
-  )
-}
+const EMPTY_TASKS: Task[] = []
+const EMPTY_IDEAS: Workspace["ideas"] = []
 
 export function useTasks() {
-  const ready = useIsClient()
-  const raw = useSyncExternalStore(
-    subscribeToStore,
-    getStoreSnapshot,
-    getServerStoreSnapshot
-  )
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+  const [ready, setReady] = useState(false)
   const [selectedDate, setSelectedDate] = useState("")
 
-  const store = useMemo(() => parseStore(raw), [raw])
-  const workspaces = store.workspaces
   const activeDate = selectedDate || (ready ? todayKey() : "")
-
   const workspace =
     workspaces.find((item) => item.date === activeDate) ?? null
+  const tasks = workspace?.tasks ?? EMPTY_TASKS
+  const ideas = workspace?.ideas ?? EMPTY_IDEAS
 
-  const tasks = workspace?.tasks ?? []
-  const ideas = workspace?.ideas ?? []
+  useEffect(() => {
+    let cancelled = false
 
-  const update = useCallback((updater: (current: Workspace[]) => Workspace[]) => {
-    const current = parseStore(getStoreSnapshot())
-    writeStore({ version: 2, workspaces: updater(current.workspaces) })
+    listWorkspaces()
+      .then((next) => {
+        if (!cancelled) setWorkspaces(next)
+      })
+      .catch(() => {
+        if (!cancelled) setWorkspaces([])
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const createCurrentWorkspace = useCallback(() => {
+  const createCurrentWorkspace = useCallback(async () => {
     const date = selectedDate || todayKey()
-
-    update((current) => {
-      if (current.some((item) => item.date === date)) return current
-      return [...current, createWorkspace(date)]
-    })
-
+    setWorkspaces(await createWorkspaceAction(date))
     setSelectedDate(date)
-  }, [selectedDate, update])
+  }, [selectedDate])
 
   const renameWorkspace = useCallback(
-    (title: string) => {
+    async (title: string) => {
       if (!workspace) return
-      update((current) =>
-        current.map((item) =>
-          item.id === workspace.id ? { ...item, title } : item
-        )
-      )
+      setWorkspaces(await renameWorkspaceAction(workspace.id, title))
     },
-    [update, workspace]
+    [workspace]
   )
 
-  const deleteWorkspace = useCallback(() => {
+  const deleteWorkspace = useCallback(async () => {
     if (!workspace) return
-    update((current) => current.filter((item) => item.id !== workspace.id))
-  }, [update, workspace])
+    setWorkspaces(await deleteWorkspaceAction(workspace.id))
+  }, [workspace])
 
-  const updateTasks = useCallback(
-    (updater: (current: Task[]) => Task[]) => {
-      if (!workspace) return
-      const workspaceId = workspace.id
-      update((current) =>
-        current.map((item) =>
-          item.id === workspaceId
-            ? { ...item, tasks: updater(item.tasks) }
-            : item
-        )
-      )
+  const addTask = useCallback(async () => {
+    if (!workspace) return ""
+    const result = await addTaskAction(workspace.id)
+    setWorkspaces(result.workspaces)
+    return result.id
+  }, [workspace])
+
+  const updateTaskTitle = useCallback(async (id: string, title: string) => {
+    setWorkspaces(await updateTaskTitleAction(id, title))
+  }, [])
+
+  const toggleTask = useCallback(async (id: string) => {
+    setWorkspaces(await toggleTaskAction(id))
+  }, [])
+
+  const deleteTask = useCallback(async (id: string) => {
+    setWorkspaces(await deleteTaskAction(id))
+  }, [])
+
+  const addSubtask = useCallback(async (taskId: string) => {
+    const result = await addSubtaskAction(taskId)
+    setWorkspaces(result.workspaces)
+    return result.id
+  }, [])
+
+  const updateSubtaskTitle = useCallback(
+    async (taskId: string, subtaskId: string, title: string) => {
+      setWorkspaces(await updateSubtaskTitleAction(taskId, subtaskId, title))
     },
-    [update, workspace]
+    []
+  )
+
+  const toggleSubtask = useCallback(async (taskId: string, subtaskId: string) => {
+    setWorkspaces(await toggleSubtaskAction(taskId, subtaskId))
+  }, [])
+
+  const deleteSubtask = useCallback(async (taskId: string, subtaskId: string) => {
+    setWorkspaces(await deleteSubtaskAction(taskId, subtaskId))
+  }, [])
+
+  const reorderSubtasks = useCallback(
+    async (taskId: string, activeId: string, overId: string) => {
+      const current = tasks.find((task) => task.id === taskId)
+      if (!current) return
+      const oldIndex = current.subtasks.findIndex((item) => item.id === activeId)
+      const newIndex = current.subtasks.findIndex((item) => item.id === overId)
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return
+      const ordered = arrayMove(current.subtasks, oldIndex, newIndex).map(
+        (item) => item.id
+      )
+      setWorkspaces(await reorderSubtasksAction(taskId, ordered))
+    },
+    [tasks]
   )
 
   const addIdea = useCallback(
-    (text: string) => {
-      const trimmed = text.trim()
-      if (!trimmed) return
-
+    async (text: string) => {
       const date = selectedDate || todayKey()
-      const idea = createIdea(trimmed)
-
-      update((current) => {
-        const existing = current.find((item) => item.date === date)
-        if (existing) {
-          return current.map((item) =>
-            item.id === existing.id
-              ? { ...item, ideas: [idea, ...item.ideas] }
-              : item
-          )
-        }
-
-        return [...current, createWorkspace(date, [], [idea])]
-      })
-
+      setWorkspaces(await addIdeaAction(date, text))
       setSelectedDate(date)
     },
-    [selectedDate, update]
+    [selectedDate]
   )
 
-  const updateIdea = useCallback(
-    (id: string, text: string) => {
-      if (!workspace) return
-      const trimmed = text.trim()
-      const workspaceId = workspace.id
+  const updateIdea = useCallback(async (id: string, text: string) => {
+    setWorkspaces(await updateIdeaAction(id, text))
+  }, [])
 
-      update((current) =>
-        current.map((item) => {
-          if (item.id !== workspaceId) return item
-          if (!trimmed) {
-            return {
-              ...item,
-              ideas: item.ideas.filter((idea) => idea.id !== id),
-            }
-          }
-          return {
-            ...item,
-            ideas: item.ideas.map((idea) =>
-              idea.id === id ? { ...idea, text: trimmed } : idea
-            ),
-          }
-        })
-      )
-    },
-    [update, workspace]
-  )
-
-  const deleteIdea = useCallback(
-    (id: string) => {
-      if (!workspace) return
-      const workspaceId = workspace.id
-      update((current) =>
-        current.map((item) =>
-          item.id === workspaceId
-            ? { ...item, ideas: item.ideas.filter((idea) => idea.id !== id) }
-            : item
-        )
-      )
-    },
-    [update, workspace]
-  )
-
-  const addTask = useCallback(() => {
-    const task = createTask()
-    updateTasks((current) => [task, ...current])
-    return task.id
-  }, [updateTasks])
-
-  const updateTaskTitle = useCallback(
-    (id: string, title: string) => {
-      updateTasks((current) =>
-        current.map((task) => (task.id === id ? { ...task, title } : task))
-      )
-    },
-    [updateTasks]
-  )
-
-  const toggleTask = useCallback(
-    (id: string) => {
-      updateTasks((current) =>
-        current.map((task) => {
-          if (task.id !== id) return task
-
-          if (task.subtasks.length === 0) {
-            return { ...task, completed: !task.completed }
-          }
-
-          const allDone = task.subtasks.every((subtask) => subtask.completed)
-          const completed = !allDone
-
-          return {
-            ...task,
-            completed,
-            subtasks: task.subtasks.map((subtask) => ({
-              ...subtask,
-              completed,
-            })),
-          }
-        })
-      )
-    },
-    [updateTasks]
-  )
-
-  const deleteTask = useCallback(
-    (id: string) => {
-      updateTasks((current) => current.filter((task) => task.id !== id))
-    },
-    [updateTasks]
-  )
-
-  const addSubtask = useCallback(
-    (taskId: string) => {
-      const subtask = createSubtask()
-
-      updateTasks((current) =>
-        current.map((task) => {
-          if (task.id !== taskId) return task
-
-          return {
-            ...task,
-            completed: false,
-            subtasks: [...task.subtasks, subtask],
-          }
-        })
-      )
-
-      return subtask.id
-    },
-    [updateTasks]
-  )
-
-  const updateSubtaskTitle = useCallback(
-    (taskId: string, subtaskId: string, title: string) => {
-      updateTasks((current) =>
-        current.map((task) => {
-          if (task.id !== taskId) return task
-
-          return {
-            ...task,
-            subtasks: task.subtasks.map((subtask) =>
-              subtask.id === subtaskId ? { ...subtask, title } : subtask
-            ),
-          }
-        })
-      )
-    },
-    [updateTasks]
-  )
-
-  const toggleSubtask = useCallback(
-    (taskId: string, subtaskId: string) => {
-      updateTasks((current) =>
-        current.map((task) => {
-          if (task.id !== taskId) return task
-
-          const subtasks = task.subtasks.map((subtask) =>
-            subtask.id === subtaskId
-              ? { ...subtask, completed: !subtask.completed }
-              : subtask
-          )
-
-          return {
-            ...task,
-            subtasks,
-            completed:
-              subtasks.length > 0 && subtasks.every((item) => item.completed),
-          }
-        })
-      )
-    },
-    [updateTasks]
-  )
-
-  const deleteSubtask = useCallback(
-    (taskId: string, subtaskId: string) => {
-      updateTasks((current) =>
-        current.map((task) => {
-          if (task.id !== taskId) return task
-
-          const subtasks = task.subtasks.filter(
-            (subtask) => subtask.id !== subtaskId
-          )
-          const completed =
-            subtasks.length > 0
-              ? subtasks.every((subtask) => subtask.completed)
-              : task.completed
-
-          return { ...task, subtasks, completed }
-        })
-      )
-    },
-    [updateTasks]
-  )
-
-  const reorderSubtasks = useCallback(
-    (taskId: string, activeId: string, overId: string) => {
-      updateTasks((current) =>
-        current.map((task) => {
-          if (task.id !== taskId) return task
-
-          const oldIndex = task.subtasks.findIndex(
-            (subtask) => subtask.id === activeId
-          )
-          const newIndex = task.subtasks.findIndex(
-            (subtask) => subtask.id === overId
-          )
-          if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
-            return task
-          }
-
-          return {
-            ...task,
-            subtasks: arrayMove(task.subtasks, oldIndex, newIndex),
-          }
-        })
-      )
-    },
-    [updateTasks]
-  )
+  const deleteIdea = useCallback(async (id: string) => {
+    setWorkspaces(await deleteIdeaAction(id))
+  }, [])
 
   return {
     ready,

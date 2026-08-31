@@ -38,6 +38,9 @@ yarn-error.log*
 
 # local editor / agent state
 .nodeterm/
+.agents/
+.claude/
+skills-lock.json
 
 # typescript
 *.tsbuildinfo

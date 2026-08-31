@@ -33,7 +33,7 @@ type SubtaskListProps = {
   onRename: (subtaskId: string, title: string) => void
   onDelete: (subtaskId: string) => void
   onReorder: (activeId: string, overId: string) => void
-  onAdd: () => string
+  onAdd: () => string | Promise<string>
 }
 
 export function SubtaskList({
@@ -84,9 +84,9 @@ export function SubtaskList({
                 onToggle={() => onToggle(subtask.id)}
                 onRename={(title) => onRename(subtask.id, title)}
                 onDelete={() => onDelete(subtask.id)}
-                onAddNext={() => {
-                  const id = onAdd()
-                  onEditingIdChange(id)
+                onAddNext={async () => {
+                  const id = await onAdd()
+                  if (id) onEditingIdChange(id)
                 }}
               />
             ))}
@@ -98,9 +98,9 @@ export function SubtaskList({
         type="button"
         variant="ghost"
         size="xs"
-        onClick={() => {
-          const id = onAdd()
-          onEditingIdChange(id)
+        onClick={async () => {
+          const id = await onAdd()
+          if (id) onEditingIdChange(id)
         }}
         className="mt-1.5 -ml-1.5 rounded-full text-muted-foreground hover:text-foreground"
       >
