@@ -36,3 +36,35 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). Press `n` for a task, `⌘I` for a note.
+
+## macOS app (Tauri)
+
+The Mac app is a thin window around the live site at [mintask.vercel.app](https://mintask.vercel.app). Clerk and Neon stay in the cloud.
+
+1. Install Rust (once):
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"
+```
+
+2. Install JS deps and generate icons from `src-tauri/icons/icon.png`:
+
+```bash
+npm install
+npx tauri icon src-tauri/icons/icon.png
+```
+
+3. Run it:
+
+```bash
+npm run tauri:dev
+```
+
+4. Ship a `.app` / `.dmg`:
+
+```bash
+npm run tauri:build
+```
+
+The build lands in `src-tauri/target/release/bundle/macos/` and `.../bundle/dmg/`. To give it to other people, join the [Apple Developer Program](https://developer.apple.com/programs/) and notarize the app (`npx tauri build` does not notarize by itself).

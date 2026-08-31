@@ -116,9 +116,9 @@ export function TaskApp() {
   const isToday = activeDate === todayKey()
 
   return (
-    <div className="flex h-dvh min-h-0 w-full overflow-hidden">
-      <aside className="hidden w-[300px] shrink-0 border-r border-border/70 lg:block">
-        <div className="flex h-full flex-col overflow-hidden px-5 py-6">
+    <div className="flex h-full min-h-0 w-full overflow-hidden">
+      <aside className="hidden min-h-0 w-72 shrink-0 border-r border-border/70 min-[1100px]:flex">
+        <div className="flex h-full min-h-0 w-full flex-col overflow-hidden px-5 py-6">
           <WorkspaceSidebar
             selectedDate={activeDate}
             workspaces={workspaces}
@@ -128,7 +128,7 @@ export function TaskApp() {
       </aside>
 
       <Sheet open={calendarOpen} onOpenChange={setCalendarOpen}>
-        <SheetContent side="left" className="w-[320px] p-5">
+        <SheetContent side="left" className="w-[min(320px,100%)] p-5">
           <SheetHeader className="sr-only">
             <SheetTitle>Workspaces</SheetTitle>
           </SheetHeader>
@@ -140,11 +140,11 @@ export function TaskApp() {
         </SheetContent>
       </Sheet>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex min-h-0 w-full flex-1 flex-col px-4 pt-4 pb-4 sm:px-6 sm:pt-6 lg:pl-12">
+      <div className="@container/main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 w-full flex-1 flex-col px-4 py-4 sm:px-6">
           {ready && workspace ? (
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="mb-4 w-full max-w-[640px] shrink-0">
+              <div className="mb-4 shrink-0">
                 <WorkspaceHeader
                   workspace={workspace}
                   isToday={isToday}
@@ -159,8 +159,8 @@ export function TaskApp() {
                 />
               </div>
 
-              <div className="flex min-h-0 flex-1 gap-4 lg:gap-8">
-                <div className="flex h-full min-h-0 w-full min-w-0 max-w-[640px] shrink-0 flex-col gap-4">
+              <div className="flex min-h-0 flex-1 flex-col gap-4 @min-[860px]/main:flex-row @min-[860px]/main:gap-6">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
                   <div className="shrink-0">
                     <DayProgressCard
                       tasks={tasks}
@@ -211,7 +211,7 @@ export function TaskApp() {
                   )}
                 </div>
 
-                <div className="hidden h-full min-h-0 w-[420px] shrink-0 flex-col gap-4 lg:flex">
+                <div className="flex min-h-0 max-h-[min(42vh,320px)] w-full shrink-0 flex-col gap-4 @min-[860px]/main:h-full @min-[860px]/main:max-h-none @min-[860px]/main:w-[min(420px,40%)]">
                   <IdeasList
                     ideas={ideas}
                     onUpdate={updateIdea}
@@ -223,41 +223,28 @@ export function TaskApp() {
                     selectedDate={activeDate}
                     workspaces={workspaces}
                     onSelectDate={selectDate}
-                    className="shrink-0"
+                    className="hidden shrink-0 @min-[860px]/main:block [@media(max-height:640px)]:hidden"
                   />
                 </div>
               </div>
-
-              <div className="mt-4 flex min-h-0 shrink-0 flex-col gap-4 lg:hidden">
-                <IdeasList
-                  ideas={ideas}
-                  onUpdate={updateIdea}
-                  onDelete={deleteIdea}
-                  onCapture={() => setNotesOpen(true)}
-                  className="h-[220px]"
-                />
-                <MonthHeatmap
-                  selectedDate={activeDate}
-                  workspaces={workspaces}
-                  onSelectDate={selectDate}
-                />
-              </div>
             </div>
           ) : (
-            <div className="w-full max-w-[640px] space-y-4">
-              <WorkspaceHeader
-                workspace={null}
-                isToday={isToday}
-                activeDate={activeDate}
-                ready={ready}
-                editingTitle={false}
-                onEditingTitleChange={() => {}}
-                onRename={() => {}}
-                onOpenCalendar={() => setCalendarOpen(true)}
-                onOpenNotes={() => setNotesOpen(true)}
-                onDelete={() => {}}
-                onNewTask={createWorkspace}
-              />
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="mb-4 shrink-0">
+                <WorkspaceHeader
+                  workspace={null}
+                  isToday={isToday}
+                  activeDate={activeDate}
+                  ready={ready}
+                  editingTitle={false}
+                  onEditingTitleChange={() => {}}
+                  onRename={() => {}}
+                  onOpenCalendar={() => setCalendarOpen(true)}
+                  onOpenNotes={() => setNotesOpen(true)}
+                  onDelete={() => {}}
+                  onNewTask={createWorkspace}
+                />
+              </div>
               {ready ? (
                 <EmptyWorkspace
                   isToday={isToday}
@@ -330,14 +317,14 @@ function WorkspaceHeader({
   onNewTask: () => void
 }) {
   return (
-    <header className="flex w-full shrink-0 items-start justify-between gap-3">
+    <header className="flex w-full min-w-0 shrink-0 items-start justify-between gap-2 sm:gap-3">
       <div className="flex min-w-0 items-start gap-2">
         <Button
           type="button"
           variant="ghost"
           size="icon"
           aria-label="Open calendar"
-          className="mt-0.5 rounded-full lg:hidden"
+          className="mt-0.5 rounded-full min-[1100px]:hidden"
           onClick={onOpenCalendar}
         >
           <CalendarDays />
@@ -376,7 +363,7 @@ function WorkspaceHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        <div className="lg:hidden">
+        <div className="min-[1100px]:hidden">
           <ThemeToggle />
         </div>
         {workspace ? (
@@ -416,10 +403,10 @@ function WorkspaceHeader({
                 <Button
                   type="button"
                   onClick={onNewTask}
-                  className="h-8 rounded-full px-3.5"
+                  className="h-8 rounded-full px-2.5 min-[420px]:px-3.5"
                 >
                   <Plus />
-                  New Task
+                  <span className="hidden min-[420px]:inline">New Task</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Press N</TooltipContent>
@@ -468,7 +455,7 @@ function EmptyWorkspace({
     <div
       className={cn(
         surfaceClass,
-        "flex flex-1 flex-col items-center justify-center px-6 py-24 text-center"
+        "flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-10 text-center sm:py-16"
       )}
     >
       <p className="text-[17px] font-semibold tracking-[-0.025em] text-foreground">
@@ -495,7 +482,7 @@ function EmptyTasks({ onCreate }: { onCreate: () => void }) {
     <div
       className={cn(
         surfaceClass,
-        "flex flex-col items-center justify-center px-6 py-16 text-center"
+        "flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-10 text-center sm:py-16"
       )}
     >
       <p className="text-[15px] font-semibold tracking-[-0.025em] text-foreground">
