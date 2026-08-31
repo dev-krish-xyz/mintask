@@ -69,3 +69,51 @@ export function formatMonthYearFromKey(key: string): string {
     year: "numeric",
   })
 }
+
+export function addDaysToKey(key: string, days: number): string {
+  const date = parseDateKey(key)
+  date.setDate(date.getDate() + days)
+  return toDateKey(date)
+}
+
+export function startOfWeekKey(key: string): string {
+  const date = parseDateKey(key)
+  date.setDate(date.getDate() - date.getDay())
+  return toDateKey(date)
+}
+
+export function getHeatmapWeeks(endKey: string, weekCount = 5): string[][] {
+  const start = addDaysToKey(startOfWeekKey(endKey), -(weekCount - 1) * 7)
+  const weeks: string[][] = []
+
+  for (let week = 0; week < weekCount; week += 1) {
+    const days: string[] = []
+    for (let day = 0; day < 7; day += 1) {
+      days.push(addDaysToKey(start, week * 7 + day))
+    }
+    weeks.push(days)
+  }
+
+  return weeks
+}
+
+export function formatHeatmapRange(startKey: string, endKey: string): string {
+  const start = parseDateKey(startKey)
+  const end = parseDateKey(endKey)
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const sameMonth = sameYear && start.getMonth() === end.getMonth()
+
+  if (sameMonth) {
+    return `${start.toLocaleDateString(undefined, { month: "short" })} ${start.getDate()} – ${end.getDate()}`
+  }
+
+  const startLabel = start.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  })
+  const endLabel = end.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  })
+  return `${startLabel} – ${endLabel}`
+}

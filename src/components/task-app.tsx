@@ -6,6 +6,7 @@ import { CalendarDays, PenLine, Plus, Trash2 } from "lucide-react"
 import { DayProgressCard } from "@/components/day-progress"
 import { EditableTitle } from "@/components/editable-title"
 import { IdeasList } from "@/components/ideas-list"
+import { MonthHeatmap } from "@/components/month-heatmap"
 import { NotesPad } from "@/components/notes-pad"
 import { TaskItem } from "@/components/task-item"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -167,15 +168,6 @@ export function TaskApp() {
                     />
                   </div>
 
-                  <div className="shrink-0 lg:hidden">
-                    <IdeasList
-                      ideas={ideas}
-                      onUpdate={updateIdea}
-                      onDelete={deleteIdea}
-                      onCapture={() => setNotesOpen(true)}
-                    />
-                  </div>
-
                   {tasks.length > 0 ? (
                     <div className={surfaceScrollClass}>
                       <ul
@@ -219,14 +211,36 @@ export function TaskApp() {
                   )}
                 </div>
 
-                <div className="hidden h-full min-h-0 w-[420px] shrink-0 lg:block">
+                <div className="hidden h-full min-h-0 w-[420px] shrink-0 flex-col gap-4 lg:flex">
                   <IdeasList
                     ideas={ideas}
                     onUpdate={updateIdea}
                     onDelete={deleteIdea}
                     onCapture={() => setNotesOpen(true)}
+                    className="min-h-0 flex-1"
+                  />
+                  <MonthHeatmap
+                    selectedDate={activeDate}
+                    workspaces={workspaces}
+                    onSelectDate={selectDate}
+                    className="shrink-0"
                   />
                 </div>
+              </div>
+
+              <div className="mt-4 flex min-h-0 shrink-0 flex-col gap-4 lg:hidden">
+                <IdeasList
+                  ideas={ideas}
+                  onUpdate={updateIdea}
+                  onDelete={deleteIdea}
+                  onCapture={() => setNotesOpen(true)}
+                  className="h-[220px]"
+                />
+                <MonthHeatmap
+                  selectedDate={activeDate}
+                  workspaces={workspaces}
+                  onSelectDate={selectDate}
+                />
               </div>
             </div>
           ) : (

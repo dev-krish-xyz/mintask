@@ -13,6 +13,7 @@ type IdeasListProps = {
   onUpdate: (id: string, text: string) => void
   onDelete: (id: string) => void
   onCapture: () => void
+  className?: string
 }
 
 export function IdeasList({
@@ -20,13 +21,11 @@ export function IdeasList({
   onUpdate,
   onDelete,
   onCapture,
+  className,
 }: IdeasListProps) {
   return (
     <section
-      className={cn(
-        surfaceClass,
-        "flex h-full min-h-[220px] max-h-[360px] flex-col lg:max-h-none"
-      )}
+      className={cn(surfaceClass, "flex min-h-0 flex-col", className)}
     >
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2.5">
         <h2 className="text-[11px] font-medium tracking-[0.04em] text-muted-foreground uppercase">
