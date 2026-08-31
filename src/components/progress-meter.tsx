@@ -12,7 +12,7 @@ export function ProgressMeter({
   total,
 }: ProgressMeterProps) {
   return (
-    <div className="mt-3">
+    <div className="mt-1.5">
       <div className="flex items-center gap-3">
         <div
           role="progressbar"
@@ -31,7 +31,7 @@ export function ProgressMeter({
           {percent}%
         </span>
       </div>
-      <p className="mt-1.5 text-[12px] text-muted-foreground">
+      <p className="mt-1 text-[12px] text-muted-foreground">
         {completedCount} of {total} complete
       </p>
     </div>

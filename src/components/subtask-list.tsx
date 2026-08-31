@@ -59,7 +59,11 @@ export function SubtaskList({
   }
 
   return (
-    <div className="mt-3.5 ml-1 border-l border-border/70 pl-4">
+    <div className="relative mt-2 -ml-1">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-4 z-10 w-px bg-border/70"
+      />
       <DndContext
         id={listId}
         sensors={sensors}
@@ -70,7 +74,7 @@ export function SubtaskList({
           items={subtasks.map((subtask) => subtask.id)}
           strategy={verticalListSortingStrategy}
         >
-          <ul aria-label="Sub-tasks" className="space-y-0.5">
+          <ul aria-label="Sub-tasks" className="space-y-0">
             {subtasks.map((subtask, index) => (
               <SortableSubtask
                 key={subtask.id}
@@ -94,19 +98,22 @@ export function SubtaskList({
         </SortableContext>
       </DndContext>
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="xs"
-        onClick={async () => {
-          const id = await onAdd()
-          if (id) onEditingIdChange(id)
-        }}
-        className="mt-1.5 -ml-1.5 rounded-full text-muted-foreground hover:text-foreground"
-      >
-        <Plus />
-        Add sub-task
-      </Button>
+      <div className="flex">
+        <span className="w-4 shrink-0" aria-hidden="true" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          onClick={async () => {
+            const id = await onAdd()
+            if (id) onEditingIdChange(id)
+          }}
+          className="mt-0.5 ml-0.5 rounded-full text-muted-foreground hover:text-foreground"
+        >
+          <Plus />
+          Add sub-task
+        </Button>
+      </div>
     </div>
   )
 }
@@ -143,58 +150,60 @@ function SortableSubtask({
         transition,
       }}
       className={cn(
-        "group/subtask flex items-start gap-2 rounded-lg py-1.5 pr-1 pl-1 transition-colors hover:bg-foreground/[0.035]",
-        isDragging && "relative z-10 bg-muted/80 opacity-80"
+        "group/subtask flex items-stretch rounded-md pr-0.5 transition-colors hover:bg-foreground/[0.035]",
+        isDragging && "z-10 bg-muted/80 opacity-80"
       )}
     >
-      {showHandle ? (
-        <button
+      <div className="flex w-4 shrink-0 items-center justify-center">
+        {showHandle ? (
+          <button
+            type="button"
+            aria-label="Reorder sub-task"
+            className="flex size-3.5 cursor-grab touch-none items-center justify-center text-muted-foreground/50 hover:text-muted-foreground active:cursor-grabbing md:opacity-0 md:group-hover/subtask:opacity-100 md:group-focus-within/subtask:opacity-100"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+
+      <div className="flex min-w-0 flex-1 items-start gap-2 py-1 pl-2.5">
+        <TaskCheck
+          size="sm"
+          checked={subtask.completed}
+          label={`Mark “${subtask.title || "Untitled"}” ${subtask.completed ? "incomplete" : "complete"}`}
+          onToggle={onToggle}
+        />
+
+        <EditableTitle
+          value={subtask.title}
+          editing={editing}
+          onEditingChange={onEditingChange}
+          onChange={onRename}
+          onEmptyCommit={onDelete}
+          onCommit={(via) => {
+            if (via === "enter" && isLast) onAddNext()
+          }}
+          placeholder="Sub-task"
+          className={cn(
+            "min-w-0 flex-1 py-0.5 text-[14px] leading-snug tracking-[-0.015em]",
+            subtask.completed &&
+              "text-muted-foreground line-through decoration-foreground/25"
+          )}
+        />
+
+        <Button
           type="button"
-          aria-label="Reorder sub-task"
-          className="mt-0.5 flex size-4 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing md:text-muted-foreground/0 md:group-hover/subtask:text-muted-foreground/70 md:group-focus-within/subtask:text-muted-foreground/70"
-          {...attributes}
-          {...listeners}
+          variant="ghost"
+          size="icon-xs"
+          aria-label={`Delete sub-task ${subtask.title || "Untitled"}`}
+          onClick={onDelete}
+          className="rounded-full text-muted-foreground opacity-100 hover:text-foreground md:opacity-0 md:group-hover/subtask:opacity-100 md:group-focus-within/subtask:opacity-100"
         >
-          <GripVertical className="size-3.5" />
-        </button>
-      ) : (
-        <span className="size-4 shrink-0" aria-hidden="true" />
-      )}
-
-      <TaskCheck
-        size="sm"
-        checked={subtask.completed}
-        label={`Mark “${subtask.title || "Untitled"}” ${subtask.completed ? "incomplete" : "complete"}`}
-        onToggle={onToggle}
-      />
-
-      <EditableTitle
-        value={subtask.title}
-        editing={editing}
-        onEditingChange={onEditingChange}
-        onChange={onRename}
-        onEmptyCommit={onDelete}
-        onCommit={(via) => {
-          if (via === "enter" && isLast) onAddNext()
-        }}
-        placeholder="Sub-task"
-        className={cn(
-          "min-w-0 flex-1 py-0.5 text-[14px] leading-snug tracking-[-0.015em]",
-          subtask.completed && "text-muted-foreground line-through decoration-foreground/25"
-        )}
-      />
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-xs"
-        aria-label={`Delete sub-task ${subtask.title || "Untitled"}`}
-        onClick={onDelete}
-        className="rounded-full text-muted-foreground opacity-100 hover:text-foreground md:opacity-0 md:group-hover/subtask:opacity-100 md:group-focus-within/subtask:opacity-100"
-      >
-        <Trash2 />
-      </Button>
-
+          <Trash2 />
+        </Button>
+      </div>
     </li>
   )
 }

@@ -1,10 +1,10 @@
 "use server"
 
 import { auth } from "@clerk/nextjs/server"
-import { and, asc, desc, eq } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 
 import { getDb } from "@/db"
-import { mapWorkspace } from "@/db/map"
+import { assembleWorkspaces } from "@/db/map"
 import { ideas, subtasks, tasks, workspaces } from "@/db/schema"
 import { formatWeekday } from "@/lib/dates"
 import type { Workspace } from "@/lib/tasks"
@@ -17,25 +17,39 @@ async function requireUserId() {
 
 async function loadWorkspaces(userId: string): Promise<Workspace[]> {
   const db = getDb()
-  const rows = await db.query.workspaces.findMany({
-    where: eq(workspaces.userId, userId),
-    with: {
-      tasks: {
-        with: {
-          subtasks: {
-            orderBy: [asc(subtasks.sortOrder)],
-          },
-        },
-        orderBy: [desc(tasks.createdAt)],
-      },
-      ideas: {
-        orderBy: [desc(ideas.createdAt)],
-      },
-    },
-    orderBy: [desc(workspaces.date)],
-  })
+  const workspaceRows = await db
+    .select()
+    .from(workspaces)
+    .where(eq(workspaces.userId, userId))
+    .orderBy(desc(workspaces.date))
 
-  return rows.map(mapWorkspace)
+  if (workspaceRows.length === 0) return []
+
+  const workspaceIds = workspaceRows.map((row) => row.id)
+  const [taskRows, ideaRows] = await Promise.all([
+    db
+      .select()
+      .from(tasks)
+      .where(inArray(tasks.workspaceId, workspaceIds))
+      .orderBy(desc(tasks.createdAt)),
+    db
+      .select()
+      .from(ideas)
+      .where(inArray(ideas.workspaceId, workspaceIds))
+      .orderBy(desc(ideas.createdAt)),
+  ])
+
+  const taskIds = taskRows.map((row) => row.id)
+  const subtaskRows =
+    taskIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(subtasks)
+          .where(inArray(subtasks.taskId, taskIds))
+          .orderBy(asc(subtasks.sortOrder))
+
+  return assembleWorkspaces(workspaceRows, taskRows, subtaskRows, ideaRows)
 }
 
 export async function listWorkspaces(): Promise<Workspace[]> {
@@ -44,137 +58,144 @@ export async function listWorkspaces(): Promise<Workspace[]> {
 }
 
 async function ownedWorkspace(userId: string, workspaceId: string) {
-  const db = getDb()
-  const row = await db.query.workspaces.findFirst({
-    where: and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)),
-  })
+  const [row] = await getDb()
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
+    .limit(1)
   if (!row) throw new Error("Workspace not found")
   return row
 }
 
-async function getOrCreateWorkspace(userId: string, date: string) {
+async function ownedTask(userId: string, taskId: string) {
+  const [row] = await getDb()
+    .select({
+      id: tasks.id,
+      workspaceId: tasks.workspaceId,
+      completed: tasks.completed,
+    })
+    .from(tasks)
+    .innerJoin(workspaces, eq(workspaces.id, tasks.workspaceId))
+    .where(and(eq(tasks.id, taskId), eq(workspaces.userId, userId)))
+    .limit(1)
+  if (!row) throw new Error("Task not found")
+  return row
+}
+
+async function ownedIdea(userId: string, ideaId: string) {
+  const [row] = await getDb()
+    .select({ id: ideas.id })
+    .from(ideas)
+    .innerJoin(workspaces, eq(workspaces.id, ideas.workspaceId))
+    .where(and(eq(ideas.id, ideaId), eq(workspaces.userId, userId)))
+    .limit(1)
+  if (!row) throw new Error("Idea not found")
+  return row
+}
+
+async function getOrCreateWorkspace(
+  userId: string,
+  date: string,
+  id?: string
+) {
   const db = getDb()
-  const existing = await db.query.workspaces.findFirst({
-    where: and(eq(workspaces.userId, userId), eq(workspaces.date, date)),
-  })
+  const [existing] = await db
+    .select()
+    .from(workspaces)
+    .where(and(eq(workspaces.userId, userId), eq(workspaces.date, date)))
+    .limit(1)
   if (existing) return existing
 
   const [created] = await db
     .insert(workspaces)
     .values({
+      id: id ?? crypto.randomUUID(),
       userId,
       date,
       title: formatWeekday(date),
     })
+    .onConflictDoNothing({ target: [workspaces.userId, workspaces.date] })
     .returning()
 
-  return created
+  if (created) return created
+
+  const [again] = await db
+    .select()
+    .from(workspaces)
+    .where(and(eq(workspaces.userId, userId), eq(workspaces.date, date)))
+    .limit(1)
+  if (!again) throw new Error("Workspace not found")
+  return again
 }
 
-export async function createWorkspaceAction(date: string) {
+export async function createWorkspaceAction(date: string, id: string) {
   const userId = await requireUserId()
-  await getOrCreateWorkspace(userId, date)
-  return loadWorkspaces(userId)
+  await getOrCreateWorkspace(userId, date, id)
 }
 
 export async function renameWorkspaceAction(workspaceId: string, title: string) {
   const userId = await requireUserId()
-  await ownedWorkspace(userId, workspaceId)
   const next = title.trim()
-  if (!next) return loadWorkspaces(userId)
+  if (!next) return
 
   await getDb()
     .update(workspaces)
     .set({ title: next })
     .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
-
-  return loadWorkspaces(userId)
 }
 
 export async function deleteWorkspaceAction(workspaceId: string) {
   const userId = await requireUserId()
-  await ownedWorkspace(userId, workspaceId)
   await getDb()
     .delete(workspaces)
     .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
-  return loadWorkspaces(userId)
 }
 
-export async function addTaskAction(workspaceId: string) {
+export async function addTaskAction(workspaceId: string, id: string) {
   const userId = await requireUserId()
   await ownedWorkspace(userId, workspaceId)
-  const id = crypto.randomUUID()
   await getDb().insert(tasks).values({
     id,
     workspaceId,
     title: "",
     completed: false,
   })
-  return { id, workspaces: await loadWorkspaces(userId) }
 }
 
 export async function updateTaskTitleAction(taskId: string, title: string) {
   const userId = await requireUserId()
-  const db = getDb()
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
-    with: { workspace: true },
-  })
-  if (!task || task.workspace.userId !== userId) throw new Error("Task not found")
-
-  await db.update(tasks).set({ title }).where(eq(tasks.id, taskId))
-  return loadWorkspaces(userId)
+  await ownedTask(userId, taskId)
+  await getDb().update(tasks).set({ title }).where(eq(tasks.id, taskId))
 }
 
-export async function toggleTaskAction(taskId: string) {
+export async function toggleTaskAction(
+  taskId: string,
+  completed: boolean,
+  syncSubtasks: boolean
+) {
   const userId = await requireUserId()
+  await ownedTask(userId, taskId)
   const db = getDb()
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
-    with: { workspace: true, subtasks: true },
-  })
-  if (!task || task.workspace.userId !== userId) throw new Error("Task not found")
-
-  if (task.subtasks.length === 0) {
-    await db
-      .update(tasks)
-      .set({ completed: !task.completed })
-      .where(eq(tasks.id, taskId))
-  } else {
-    const completed = !task.subtasks.every((item) => item.completed)
-    await db.update(tasks).set({ completed }).where(eq(tasks.id, taskId))
-    await db
-      .update(subtasks)
-      .set({ completed })
-      .where(eq(subtasks.taskId, taskId))
+  await db.update(tasks).set({ completed }).where(eq(tasks.id, taskId))
+  if (syncSubtasks) {
+    await db.update(subtasks).set({ completed }).where(eq(subtasks.taskId, taskId))
   }
-
-  return loadWorkspaces(userId)
 }
 
 export async function deleteTaskAction(taskId: string) {
   const userId = await requireUserId()
-  const db = getDb()
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
-    with: { workspace: true },
-  })
-  if (!task || task.workspace.userId !== userId) throw new Error("Task not found")
-  await db.delete(tasks).where(eq(tasks.id, taskId))
-  return loadWorkspaces(userId)
+  await ownedTask(userId, taskId)
+  await getDb().delete(tasks).where(eq(tasks.id, taskId))
 }
 
-export async function addSubtaskAction(taskId: string) {
+export async function addSubtaskAction(
+  taskId: string,
+  id: string,
+  sortOrder: number
+) {
   const userId = await requireUserId()
+  await ownedTask(userId, taskId)
   const db = getDb()
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
-    with: { workspace: true, subtasks: true },
-  })
-  if (!task || task.workspace.userId !== userId) throw new Error("Task not found")
-
-  const id = crypto.randomUUID()
-  const sortOrder = task.subtasks.length
   await db.insert(subtasks).values({
     id,
     taskId,
@@ -183,7 +204,6 @@ export async function addSubtaskAction(taskId: string) {
     sortOrder,
   })
   await db.update(tasks).set({ completed: false }).where(eq(tasks.id, taskId))
-  return { id, workspaces: await loadWorkspaces(userId) }
 }
 
 export async function updateSubtaskTitleAction(
@@ -192,61 +212,36 @@ export async function updateSubtaskTitleAction(
   title: string
 ) {
   const userId = await requireUserId()
-  const db = getDb()
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
-    with: { workspace: true },
-  })
-  if (!task || task.workspace.userId !== userId) throw new Error("Task not found")
-  await db.update(subtasks).set({ title }).where(eq(subtasks.id, subtaskId))
-  return loadWorkspaces(userId)
+  await ownedTask(userId, taskId)
+  await getDb().update(subtasks).set({ title }).where(eq(subtasks.id, subtaskId))
 }
 
-export async function toggleSubtaskAction(taskId: string, subtaskId: string) {
+export async function toggleSubtaskAction(
+  taskId: string,
+  subtaskId: string,
+  subtaskCompleted: boolean,
+  taskCompleted: boolean
+) {
   const userId = await requireUserId()
+  await ownedTask(userId, taskId)
   const db = getDb()
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
-    with: { workspace: true, subtasks: true },
-  })
-  if (!task || task.workspace.userId !== userId) throw new Error("Task not found")
-
-  const current = task.subtasks.find((item) => item.id === subtaskId)
-  if (!current) throw new Error("Subtask not found")
-
   await db
     .update(subtasks)
-    .set({ completed: !current.completed })
+    .set({ completed: subtaskCompleted })
     .where(eq(subtasks.id, subtaskId))
-
-  const nextSubtasks = task.subtasks.map((item) =>
-    item.id === subtaskId ? { ...item, completed: !item.completed } : item
-  )
-  const completed =
-    nextSubtasks.length > 0 && nextSubtasks.every((item) => item.completed)
-  await db.update(tasks).set({ completed }).where(eq(tasks.id, taskId))
-
-  return loadWorkspaces(userId)
+  await db.update(tasks).set({ completed: taskCompleted }).where(eq(tasks.id, taskId))
 }
 
-export async function deleteSubtaskAction(taskId: string, subtaskId: string) {
+export async function deleteSubtaskAction(
+  taskId: string,
+  subtaskId: string,
+  taskCompleted: boolean
+) {
   const userId = await requireUserId()
+  await ownedTask(userId, taskId)
   const db = getDb()
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
-    with: { workspace: true, subtasks: true },
-  })
-  if (!task || task.workspace.userId !== userId) throw new Error("Task not found")
-
   await db.delete(subtasks).where(eq(subtasks.id, subtaskId))
-  const remaining = task.subtasks.filter((item) => item.id !== subtaskId)
-  const completed =
-    remaining.length > 0
-      ? remaining.every((item) => item.completed)
-      : task.completed
-  await db.update(tasks).set({ completed }).where(eq(tasks.id, taskId))
-
-  return loadWorkspaces(userId)
+  await db.update(tasks).set({ completed: taskCompleted }).where(eq(tasks.id, taskId))
 }
 
 export async function reorderSubtasksAction(
@@ -254,62 +249,54 @@ export async function reorderSubtasksAction(
   orderedIds: string[]
 ) {
   const userId = await requireUserId()
-  const db = getDb()
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
-    with: { workspace: true },
-  })
-  if (!task || task.workspace.userId !== userId) throw new Error("Task not found")
+  await ownedTask(userId, taskId)
+  if (orderedIds.length === 0) return
 
-  await Promise.all(
-    orderedIds.map((id, index) =>
-      db.update(subtasks).set({ sortOrder: index }).where(eq(subtasks.id, id))
-    )
-  )
-
-  return loadWorkspaces(userId)
+  await getDb().execute(sql`
+    UPDATE subtasks AS s
+    SET sort_order = v.sort_order::int
+    FROM (
+      VALUES ${sql.join(
+        orderedIds.map((id, index) => sql`(${id}::uuid, ${index})`),
+        sql`, `
+      )}
+    ) AS v(id, sort_order)
+    WHERE s.id = v.id AND s.task_id = ${taskId}::uuid
+  `)
 }
 
-export async function addIdeaAction(date: string, text: string) {
+export async function addIdeaAction(
+  date: string,
+  text: string,
+  id: string,
+  workspaceId?: string
+) {
   const userId = await requireUserId()
   const trimmed = text.trim()
-  if (!trimmed) return loadWorkspaces(userId)
+  if (!trimmed) return
 
-  const workspace = await getOrCreateWorkspace(userId, date)
+  const workspace = await getOrCreateWorkspace(userId, date, workspaceId)
   await getDb().insert(ideas).values({
+    id,
     workspaceId: workspace.id,
     text: trimmed,
   })
-  return loadWorkspaces(userId)
 }
 
 export async function updateIdeaAction(ideaId: string, text: string) {
   const userId = await requireUserId()
-  const db = getDb()
-  const idea = await db.query.ideas.findFirst({
-    where: eq(ideas.id, ideaId),
-    with: { workspace: true },
-  })
-  if (!idea || idea.workspace.userId !== userId) throw new Error("Idea not found")
-
+  await ownedIdea(userId, ideaId)
   const trimmed = text.trim()
+  const db = getDb()
   if (!trimmed) {
     await db.delete(ideas).where(eq(ideas.id, ideaId))
-  } else {
-    await db.update(ideas).set({ text: trimmed }).where(eq(ideas.id, ideaId))
+    return
   }
-
-  return loadWorkspaces(userId)
+  await db.update(ideas).set({ text: trimmed }).where(eq(ideas.id, ideaId))
 }
 
 export async function deleteIdeaAction(ideaId: string) {
   const userId = await requireUserId()
-  const db = getDb()
-  const idea = await db.query.ideas.findFirst({
-    where: eq(ideas.id, ideaId),
-    with: { workspace: true },
-  })
-  if (!idea || idea.workspace.userId !== userId) throw new Error("Idea not found")
-  await db.delete(ideas).where(eq(ideas.id, ideaId))
-  return loadWorkspaces(userId)
+  await ownedIdea(userId, ideaId)
+  await getDb().delete(ideas).where(eq(ideas.id, ideaId))
 }

@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm"
 import {
   boolean,
+  index,
   integer,
   pgTable,
   text,
@@ -20,41 +21,56 @@ export const workspaces = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [unique("workspaces_user_date").on(table.userId, table.date)]
+  (table) => [
+    unique("workspaces_user_date").on(table.userId, table.date),
+    index("workspaces_user_id_idx").on(table.userId),
+  ]
 )
 
-export const tasks = pgTable("tasks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  workspaceId: uuid("workspace_id")
-    .notNull()
-    .references(() => workspaces.id, { onDelete: "cascade" }),
-  title: text("title").notNull().default(""),
-  completed: boolean("completed").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-})
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default(""),
+    completed: boolean("completed").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("tasks_workspace_id_idx").on(table.workspaceId)]
+)
 
-export const subtasks = pgTable("subtasks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  taskId: uuid("task_id")
-    .notNull()
-    .references(() => tasks.id, { onDelete: "cascade" }),
-  title: text("title").notNull().default(""),
-  completed: boolean("completed").notNull().default(false),
-  sortOrder: integer("sort_order").notNull().default(0),
-})
+export const subtasks = pgTable(
+  "subtasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default(""),
+    completed: boolean("completed").notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => [index("subtasks_task_id_idx").on(table.taskId)]
+)
 
-export const ideas = pgTable("ideas", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  workspaceId: uuid("workspace_id")
-    .notNull()
-    .references(() => workspaces.id, { onDelete: "cascade" }),
-  text: text("text").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-})
+export const ideas = pgTable(
+  "ideas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("ideas_workspace_id_idx").on(table.workspaceId)]
+)
 
 export const workspacesRelations = relations(workspaces, ({ many }) => ({
   tasks: many(tasks),

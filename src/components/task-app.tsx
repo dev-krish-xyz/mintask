@@ -163,7 +163,7 @@ export function TaskApp() {
                   <div className="shrink-0">
                     <DayProgressCard
                       tasks={tasks}
-                      label={isToday ? "Daily progress" : "Day progress"}
+                      label="Overall progress"
                     />
                   </div>
 
@@ -185,7 +185,7 @@ export function TaskApp() {
                         {tasks.map((task) => (
                           <li
                             key={task.id}
-                            className="px-4 py-3.5 transition-colors hover:bg-foreground/[0.02] sm:px-5 sm:py-4 dark:hover:bg-foreground/[0.03]"
+                            className="px-3 py-2.5 transition-colors hover:bg-foreground/[0.02] sm:px-4 sm:py-3 dark:hover:bg-foreground/[0.03]"
                           >
                             <TaskItem
                               task={task}

@@ -73,13 +73,23 @@ export function WorkspaceSidebar({
                           type="button"
                           onClick={() => onSelectDate(workspace.date)}
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors",
+                            "relative flex w-full items-center gap-2 overflow-hidden rounded-lg px-2 py-1.5 text-left transition-colors",
                             isActive
-                              ? "bg-foreground/[0.07] dark:bg-foreground/10"
-                              : "hover:bg-foreground/[0.04]"
+                              ? "bg-foreground/[0.05] dark:bg-foreground/[0.07]"
+                              : "hover:bg-foreground/[0.03]"
                           )}
                         >
-                          <span className="min-w-0 flex-1">
+                          <span
+                            aria-hidden
+                            className="pointer-events-none absolute inset-y-0 left-0 bg-foreground/[0.08] transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] dark:bg-foreground/[0.12]"
+                            style={{
+                              width:
+                                progress.leafTotal === 0
+                                  ? "0%"
+                                  : `${progress.percent}%`,
+                            }}
+                          />
+                          <span className="relative min-w-0 flex-1">
                             <span className="block truncate text-[13px] font-medium tracking-[-0.015em] text-foreground">
                               {workspace.title}
                             </span>
@@ -89,7 +99,7 @@ export function WorkspaceSidebar({
                                 : formatShortDate(workspace.date)}
                             </span>
                           </span>
-                          <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                          <span className="relative shrink-0 text-[11px] tabular-nums text-muted-foreground">
                             {progress.taskTotal === 0 ? "—" : `${progress.percent}%`}
                           </span>
                         </button>

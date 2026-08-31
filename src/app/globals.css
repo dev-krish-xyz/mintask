@@ -126,6 +126,27 @@
   }
 }
 
+@keyframes mintask-wave {
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.mintask-wave {
+  animation: mintask-wave 8s linear infinite;
+}
+
+.mintask-wave-slow {
+  animation: mintask-wave 13s linear infinite reverse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mintask-wave,
+  .mintask-wave-slow {
+    animation: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

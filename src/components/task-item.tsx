@@ -143,13 +143,13 @@ export function TaskItem({
               onAdd={onAddSubtask}
             />
           ) : (
-            <div className="mt-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+            <div className="mt-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
               <Button
                 type="button"
                 variant="ghost"
                 size="xs"
                 onClick={addAndEditSubtask}
-                className="-ml-1.5 rounded-full text-muted-foreground hover:text-foreground"
+                className="-ml-2 rounded-full text-muted-foreground hover:text-foreground"
               >
                 <Plus />
                 Add sub-task
