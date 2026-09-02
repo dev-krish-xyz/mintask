@@ -154,6 +154,7 @@
 
   html {
     @apply h-full overflow-hidden font-sans;
+    height: 100dvh;
     color-scheme: light;
   }
 
@@ -163,6 +164,10 @@
 
   body {
     @apply h-full overflow-hidden bg-background text-foreground antialiased;
+    height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+    -webkit-tap-highlight-color: transparent;
   }
 
   ::selection {

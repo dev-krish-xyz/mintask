@@ -68,3 +68,11 @@ npm run tauri:build
 ```
 
 The build lands in `src-tauri/target/release/bundle/macos/` and `.../bundle/dmg/`. To give it to other people, join the [Apple Developer Program](https://developer.apple.com/programs/) and notarize the app (`npx tauri build` does not notarize by itself).
+
+## iPhone (Add to Home Screen)
+
+There is no App Store build. On iPhone, install the live site as a standalone app:
+
+1. Open [mintask.vercel.app](https://mintask.vercel.app) in **Safari** (Chrome cannot add home-screen web apps on iOS).
+2. Tap Share → **Add to Home Screen**.
+3. Open the mintask icon. Sign in there if Safari was already signed in — the home-screen app has its own session.
