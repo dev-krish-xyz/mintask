@@ -159,7 +159,7 @@ export function TaskApp() {
                 />
               </div>
 
-              <div className="flex min-h-0 flex-1 flex-col gap-4 @min-[860px]/main:flex-row @min-[860px]/main:gap-6">
+              <div className="flex min-h-0 flex-1 flex-col gap-2 @min-[860px]/main:flex-row @min-[860px]/main:gap-6">
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
                   <div className="shrink-0">
                     <DayProgressCard
@@ -211,7 +211,7 @@ export function TaskApp() {
                   )}
                 </div>
 
-                <div className="flex min-h-0 max-h-[min(42vh,320px)] w-full shrink-0 flex-col gap-4 @min-[860px]/main:h-full @min-[860px]/main:max-h-none @min-[860px]/main:w-[min(420px,40%)]">
+                <div className="flex h-[5.75rem] w-full shrink-0 flex-col overflow-hidden @min-[860px]/main:h-full @min-[860px]/main:w-[min(420px,40%)] @min-[860px]/main:gap-4 @min-[860px]/main:overflow-hidden">
                   <IdeasList
                     ideas={ideas}
                     onUpdate={updateIdea}

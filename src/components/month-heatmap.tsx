@@ -10,7 +10,6 @@ import {
   todayKey,
   WEEKDAYS,
 } from "@/lib/dates"
-import { demoHeatPercent, SHOW_DEMO_HEATMAP } from "@/lib/demo-heatmap"
 import { getDayProgress, type Workspace } from "@/lib/tasks"
 import { surfaceClass } from "@/lib/surface"
 import { cn } from "@/lib/utils"
@@ -106,17 +105,9 @@ export function MonthHeatmap({
             {weeks.map((week) => {
               const date = week[row]
               const workspace = workspaceByDate.get(date)
-              const realPercent = workspace
+              const percent = workspace
                 ? getDayProgress(workspace.tasks).percent
                 : 0
-              const hasRealWork = Boolean(
-                workspace && workspace.tasks.length > 0
-              )
-              const demoPercent = SHOW_DEMO_HEATMAP
-                ? demoHeatPercent(date, today)
-                : 0
-              const percent = hasRealWork ? realPercent : demoPercent
-              const hasHeat = hasRealWork || demoPercent > 0
               const isFuture = date > today
               const isSelected = date === selectedDate
               const isToday = date === today
@@ -128,13 +119,13 @@ export function MonthHeatmap({
                       type="button"
                       disabled={isFuture}
                       onClick={() => onSelectDate(date)}
-                      aria-label={heatmapLabel(date, hasHeat, percent)}
+                      aria-label={heatmapLabel(date, workspace, percent)}
                       aria-pressed={isSelected}
                       className={cn(
                         "aspect-square w-full rounded-[4px] transition-shadow",
                         isFuture
                           ? "cursor-default bg-foreground/[0.03]"
-                          : heatClass(hasHeat, percent),
+                          : heatClass(Boolean(workspace), percent),
                         isSelected &&
                           "ring-2 ring-foreground ring-offset-1 ring-offset-card",
                         isToday && !isSelected && "ring-1 ring-foreground/25"
@@ -142,7 +133,7 @@ export function MonthHeatmap({
                     />
                   </TooltipTrigger>
                   <TooltipContent side="top" sideOffset={6}>
-                    {heatmapLabel(date, hasHeat, percent)}
+                    {heatmapLabel(date, workspace, percent)}
                   </TooltipContent>
                 </Tooltip>
               )
@@ -186,8 +177,13 @@ function heatClass(hasWorkspace: boolean, percent: number) {
   return "bg-foreground/[0.08]"
 }
 
-function heatmapLabel(date: string, hasHeat: boolean, percent: number) {
+function heatmapLabel(
+  date: string,
+  workspace: Workspace | undefined,
+  percent: number
+) {
   const day = formatShortDate(date)
-  if (!hasHeat) return `${day} · no workspace`
+  if (!workspace) return `${day} · no workspace`
+  if (workspace.tasks.length === 0) return `${day} · empty`
   return `${day} · ${percent}%`
 }
