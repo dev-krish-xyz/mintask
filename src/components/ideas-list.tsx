@@ -51,7 +51,7 @@ export function IdeasList({
           </p>
         </button>
       ) : (
-        <ul className="no-scrollbar min-h-0 flex-1 divide-y divide-border/70 overflow-y-auto">
+        <ul className="no-scrollbar min-h-0 flex-1 divide-y divide-border/70 overflow-hidden overscroll-none @min-[860px]/main:overflow-y-auto @min-[860px]/main:overscroll-contain">
           {ideas.map((idea) => (
             <IdeaItem
               key={idea.id}

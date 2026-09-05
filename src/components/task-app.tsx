@@ -141,7 +141,7 @@ export function TaskApp() {
       </Sheet>
 
       <div className="@container/main flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex min-h-0 w-full flex-1 flex-col px-4 py-4 sm:px-6">
+        <div className="flex min-h-0 w-full flex-1 flex-col px-4 pt-4 pb-2 sm:px-6 @min-[860px]/main:pb-4">
           {ready && workspace ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="mb-4 shrink-0">
@@ -211,7 +211,7 @@ export function TaskApp() {
                   )}
                 </div>
 
-                <div className="flex h-[5.75rem] w-full shrink-0 flex-col overflow-hidden @min-[860px]/main:h-full @min-[860px]/main:w-[min(420px,40%)] @min-[860px]/main:gap-4 @min-[860px]/main:overflow-hidden">
+                <div className="flex h-[4.25rem] w-full shrink-0 flex-col overflow-hidden @min-[860px]/main:h-full @min-[860px]/main:w-[min(420px,40%)] @min-[860px]/main:gap-4">
                   <IdeasList
                     ideas={ideas}
                     onUpdate={updateIdea}
