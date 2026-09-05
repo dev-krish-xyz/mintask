@@ -14,6 +14,7 @@ type IdeasListProps = {
   onDelete: (id: string) => void
   onCapture: () => void
   className?: string
+  scrollable?: boolean
 }
 
 export function IdeasList({
@@ -22,6 +23,7 @@ export function IdeasList({
   onDelete,
   onCapture,
   className,
+  scrollable = false,
 }: IdeasListProps) {
   return (
     <section
@@ -51,7 +53,14 @@ export function IdeasList({
           </p>
         </button>
       ) : (
-        <ul className="no-scrollbar min-h-0 flex-1 divide-y divide-border/70 overflow-hidden overscroll-none @min-[860px]/main:overflow-y-auto @min-[860px]/main:overscroll-contain">
+        <ul
+          className={cn(
+            "no-scrollbar min-h-0 flex-1 divide-y divide-border/70",
+            scrollable
+              ? "overflow-y-auto overscroll-contain"
+              : "overflow-hidden overscroll-none @min-[860px]/main:overflow-y-auto @min-[860px]/main:overscroll-contain"
+          )}
+        >
           {ideas.map((idea) => (
             <IdeaItem
               key={idea.id}

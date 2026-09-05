@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { CalendarDays, PenLine, Plus, Trash2 } from "lucide-react"
+import { CalendarDays, Lightbulb, PenLine, Plus, Trash2 } from "lucide-react"
 
 import { DayProgressCard } from "@/components/day-progress"
 import { EditableTitle } from "@/components/editable-title"
@@ -69,6 +69,7 @@ export function TaskApp() {
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
+  const [ideasOpen, setIdeasOpen] = useState(false)
 
   const createTask = useCallback(async () => {
     if (!workspace) return
@@ -154,6 +155,7 @@ export function TaskApp() {
                   onRename={renameWorkspace}
                   onOpenCalendar={() => setCalendarOpen(true)}
                   onOpenNotes={() => setNotesOpen(true)}
+                  onOpenIdeas={() => setIdeasOpen(true)}
                   onDelete={() => setConfirmDelete(true)}
                   onNewTask={createTask}
                 />
@@ -241,6 +243,7 @@ export function TaskApp() {
                   onRename={() => {}}
                   onOpenCalendar={() => setCalendarOpen(true)}
                   onOpenNotes={() => setNotesOpen(true)}
+                  onOpenIdeas={() => setIdeasOpen(true)}
                   onDelete={() => {}}
                   onNewTask={createWorkspace}
                 />
@@ -257,6 +260,28 @@ export function TaskApp() {
           )}
         </div>
       </div>
+
+      <Sheet open={ideasOpen} onOpenChange={setIdeasOpen}>
+        <SheetContent
+          side="bottom"
+          className="h-[min(78dvh,640px)] gap-0 rounded-t-2xl p-0 pb-[env(safe-area-inset-bottom)]"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Ideas</SheetTitle>
+          </SheetHeader>
+          <IdeasList
+            ideas={ideas}
+            onUpdate={updateIdea}
+            onDelete={deleteIdea}
+            onCapture={() => {
+              setIdeasOpen(false)
+              setNotesOpen(true)
+            }}
+            scrollable
+            className="h-full min-h-0 rounded-none bg-transparent shadow-none ring-0"
+          />
+        </SheetContent>
+      </Sheet>
 
       <NotesPad
         open={notesOpen}
@@ -301,6 +326,7 @@ function WorkspaceHeader({
   onRename,
   onOpenCalendar,
   onOpenNotes,
+  onOpenIdeas,
   onDelete,
   onNewTask,
 }: {
@@ -313,6 +339,7 @@ function WorkspaceHeader({
   onRename: (title: string) => void
   onOpenCalendar: () => void
   onOpenNotes: () => void
+  onOpenIdeas: () => void
   onDelete: () => void
   onNewTask: () => void
 }) {
@@ -368,6 +395,21 @@ function WorkspaceHeader({
         </div>
         {workspace ? (
           <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label="Ideas"
+                  className="h-8 rounded-full px-2.5 text-muted-foreground hover:text-foreground"
+                  onClick={onOpenIdeas}
+                >
+                  <Lightbulb />
+                  <span className="hidden min-[420px]:inline">Ideas</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ideas</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
