@@ -42,7 +42,7 @@ export function NotesPad({ open, onOpenChange, onSave }: NotesPadProps) {
           Quick note
         </DialogTitle>
         <DialogDescription className="sr-only">
-          Write a thought and press Return to save it to Ideas.
+          Write a thought and press Return to save it to your idea vault.
         </DialogDescription>
         <textarea
           ref={textareaRef}

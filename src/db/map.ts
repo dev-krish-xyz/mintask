@@ -26,7 +26,6 @@ type SubtaskRow = {
 
 type IdeaRow = {
   id: string
-  workspaceId: string
   text: string
   createdAt: Date
 }
@@ -34,8 +33,7 @@ type IdeaRow = {
 export function assembleWorkspaces(
   workspaceRows: WorkspaceRow[],
   taskRows: TaskRow[],
-  subtaskRows: SubtaskRow[],
-  ideaRows: IdeaRow[]
+  subtaskRows: SubtaskRow[]
 ): Workspace[] {
   const subtasksByTask = new Map<string, Subtask[]>()
   const sortedSubtasks = subtaskRows
@@ -70,21 +68,6 @@ export function assembleWorkspaces(
     else tasksByWorkspace.set(row.workspaceId, [mapped])
   }
 
-  const ideasByWorkspace = new Map<string, Idea[]>()
-  const sortedIdeas = ideaRows
-    .slice()
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-  for (const row of sortedIdeas) {
-    const mapped: Idea = {
-      id: row.id,
-      text: row.text,
-      createdAt: row.createdAt.getTime(),
-    }
-    const list = ideasByWorkspace.get(row.workspaceId)
-    if (list) list.push(mapped)
-    else ideasByWorkspace.set(row.workspaceId, [mapped])
-  }
-
   return workspaceRows
     .slice()
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -94,6 +77,17 @@ export function assembleWorkspaces(
       title: row.title,
       createdAt: row.createdAt.getTime(),
       tasks: tasksByWorkspace.get(row.id) ?? [],
-      ideas: ideasByWorkspace.get(row.id) ?? [],
+      ideas: [],
+    }))
+}
+
+export function assembleIdeas(ideaRows: IdeaRow[]): Idea[] {
+  return ideaRows
+    .slice()
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .map((row) => ({
+      id: row.id,
+      text: row.text,
+      createdAt: row.createdAt.getTime(),
     }))
 }

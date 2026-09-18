@@ -62,20 +62,17 @@ export const ideas = pgTable(
   "ideas",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    workspaceId: uuid("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
     text: text("text").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("ideas_workspace_id_idx").on(table.workspaceId)]
+  (table) => [index("ideas_user_id_idx").on(table.userId)]
 )
 
 export const workspacesRelations = relations(workspaces, ({ many }) => ({
   tasks: many(tasks),
-  ideas: many(ideas),
 }))
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
@@ -93,9 +90,3 @@ export const subtasksRelations = relations(subtasks, ({ one }) => ({
   }),
 }))
 
-export const ideasRelations = relations(ideas, ({ one }) => ({
-  workspace: one(workspaces, {
-    fields: [ideas.workspaceId],
-    references: [workspaces.id],
-  }),
-}))

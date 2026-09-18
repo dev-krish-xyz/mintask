@@ -49,7 +49,8 @@ export function IdeasList({
           className="flex flex-1 items-center px-5 pb-5 text-left"
         >
           <p className="max-w-[16rem] text-[13.5px] leading-relaxed text-muted-foreground">
-            Capture a thought. Press ⌘I and hit Return to save it here.
+            Your idea vault is empty. Press ⌘I and hit Return to save a
+            thought.
           </p>
         </button>
       ) : (

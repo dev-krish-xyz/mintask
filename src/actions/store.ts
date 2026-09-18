@@ -4,15 +4,21 @@ import { auth } from "@clerk/nextjs/server"
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 
 import { getDb } from "@/db"
-import { assembleWorkspaces } from "@/db/map"
+import { assembleIdeas, assembleWorkspaces } from "@/db/map"
 import { ideas, subtasks, tasks, workspaces } from "@/db/schema"
 import { addDaysToKey, formatWeekday } from "@/lib/dates"
 import {
   getTaskProgress,
   SYNC_LOOKBACK_DAYS,
   taskRootId,
+  type Idea,
   type Workspace,
 } from "@/lib/tasks"
+
+export type StoreSnapshot = {
+  workspaces: Workspace[]
+  ideas: Idea[]
+}
 
 async function requireUserId() {
   const { userId } = await auth()
@@ -20,29 +26,34 @@ async function requireUserId() {
   return userId
 }
 
-async function loadWorkspaces(userId: string): Promise<Workspace[]> {
+async function loadStore(userId: string): Promise<StoreSnapshot> {
   const db = getDb()
-  const workspaceRows = await db
-    .select()
-    .from(workspaces)
-    .where(eq(workspaces.userId, userId))
-    .orderBy(desc(workspaces.date))
-
-  if (workspaceRows.length === 0) return []
-
-  const workspaceIds = workspaceRows.map((row) => row.id)
-  const [taskRows, ideaRows] = await Promise.all([
+  const [workspaceRows, ideaRows] = await Promise.all([
     db
       .select()
-      .from(tasks)
-      .where(inArray(tasks.workspaceId, workspaceIds))
-      .orderBy(desc(tasks.createdAt)),
+      .from(workspaces)
+      .where(eq(workspaces.userId, userId))
+      .orderBy(desc(workspaces.date)),
     db
       .select()
       .from(ideas)
-      .where(inArray(ideas.workspaceId, workspaceIds))
+      .where(eq(ideas.userId, userId))
       .orderBy(desc(ideas.createdAt)),
   ])
+
+  if (workspaceRows.length === 0) {
+    return {
+      workspaces: [],
+      ideas: assembleIdeas(ideaRows),
+    }
+  }
+
+  const workspaceIds = workspaceRows.map((row) => row.id)
+  const taskRows = await db
+    .select()
+    .from(tasks)
+    .where(inArray(tasks.workspaceId, workspaceIds))
+    .orderBy(desc(tasks.createdAt))
 
   const taskIds = taskRows.map((row) => row.id)
   const subtaskRows =
@@ -54,12 +65,15 @@ async function loadWorkspaces(userId: string): Promise<Workspace[]> {
           .where(inArray(subtasks.taskId, taskIds))
           .orderBy(asc(subtasks.sortOrder))
 
-  return assembleWorkspaces(workspaceRows, taskRows, subtaskRows, ideaRows)
+  return {
+    workspaces: assembleWorkspaces(workspaceRows, taskRows, subtaskRows),
+    ideas: assembleIdeas(ideaRows),
+  }
 }
 
-export async function listWorkspaces(): Promise<Workspace[]> {
+export async function listWorkspaces(): Promise<StoreSnapshot> {
   const userId = await requireUserId()
-  return loadWorkspaces(userId)
+  return loadStore(userId)
 }
 
 async function ownedWorkspace(userId: string, workspaceId: string) {
@@ -91,8 +105,7 @@ async function ownedIdea(userId: string, ideaId: string) {
   const [row] = await getDb()
     .select({ id: ideas.id })
     .from(ideas)
-    .innerJoin(workspaces, eq(workspaces.id, ideas.workspaceId))
-    .where(and(eq(ideas.id, ideaId), eq(workspaces.userId, userId)))
+    .where(and(eq(ideas.id, ideaId), eq(ideas.userId, userId)))
     .limit(1)
   if (!row) throw new Error("Idea not found")
   return row
@@ -406,20 +419,14 @@ export async function syncUnfinishedTasksAction(
   }
 }
 
-export async function addIdeaAction(
-  date: string,
-  text: string,
-  id: string,
-  workspaceId?: string
-) {
+export async function addIdeaAction(text: string, id: string) {
   const userId = await requireUserId()
   const trimmed = text.trim()
   if (!trimmed) return
 
-  const workspace = await getOrCreateWorkspace(userId, date, workspaceId)
   await getDb().insert(ideas).values({
     id,
-    workspaceId: workspace.id,
+    userId,
     text: trimmed,
   })
 }

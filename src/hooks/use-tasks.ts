@@ -29,12 +29,12 @@ import {
   createTask,
   createWorkspace,
   taskRootId,
+  type Idea,
   type Task,
   type Workspace,
 } from "@/lib/tasks"
 
 const EMPTY_TASKS: Task[] = []
-const EMPTY_IDEAS: Workspace["ideas"] = []
 
 function persist(run: () => Promise<unknown>, onError: () => void) {
   void run().catch(() => onError())
@@ -65,6 +65,7 @@ function patchTask(
 
 export function useTasks() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
+  const [ideas, setIdeas] = useState<Idea[]>([])
   const [ready, setReady] = useState(false)
   const [selectedDate, setSelectedDate] = useState("")
 
@@ -72,23 +73,36 @@ export function useTasks() {
   const workspace =
     workspaces.find((item) => item.date === activeDate) ?? null
   const tasks = workspace?.tasks ?? EMPTY_TASKS
-  const ideas = workspace?.ideas ?? EMPTY_IDEAS
+
+  const applySnapshot = useCallback(
+    (next: { workspaces: Workspace[]; ideas: Idea[] }) => {
+      setWorkspaces(next.workspaces)
+      setIdeas(next.ideas)
+    },
+    []
+  )
 
   const resync = useCallback(() => {
     listWorkspaces()
-      .then(setWorkspaces)
-      .catch(() => setWorkspaces([]))
-  }, [])
+      .then(applySnapshot)
+      .catch(() => {
+        setWorkspaces([])
+        setIdeas([])
+      })
+  }, [applySnapshot])
 
   useEffect(() => {
     let cancelled = false
 
     listWorkspaces()
       .then((next) => {
-        if (!cancelled) setWorkspaces(next)
+        if (!cancelled) applySnapshot(next)
       })
       .catch(() => {
-        if (!cancelled) setWorkspaces([])
+        if (!cancelled) {
+          setWorkspaces([])
+          setIdeas([])
+        }
       })
       .finally(() => {
         if (!cancelled) setReady(true)
@@ -97,7 +111,7 @@ export function useTasks() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [applySnapshot])
 
   const createCurrentWorkspace = useCallback(async () => {
     const date = selectedDate || todayKey()
@@ -335,58 +349,24 @@ export function useTasks() {
 
   const addIdea = useCallback(
     async (text: string) => {
-      const date = selectedDate || todayKey()
       const trimmed = text.trim()
       if (!trimmed) return
       const idea = createIdea(trimmed)
-      const existing = workspaces.find((item) => item.date === date)
-
-      if (existing) {
-        setWorkspaces((prev) =>
-          patchWorkspace(prev, existing.id, (item) => ({
-            ...item,
-            ideas: [idea, ...item.ideas],
-          }))
-        )
-        persist(
-          () => addIdeaAction(date, trimmed, idea.id, existing.id),
-          resync
-        )
-      } else {
-        const created = createWorkspace(date, [], [idea])
-        setWorkspaces((prev) => {
-          if (prev.some((item) => item.date === date)) {
-            const found = prev.find((item) => item.date === date)
-            if (!found) return prev
-            return patchWorkspace(prev, found.id, (item) => ({
-              ...item,
-              ideas: [idea, ...item.ideas],
-            }))
-          }
-          return [created, ...prev]
-        })
-        persist(
-          () => addIdeaAction(date, trimmed, idea.id, created.id),
-          resync
-        )
-      }
-      setSelectedDate(date)
+      setIdeas((prev) => [idea, ...prev])
+      persist(() => addIdeaAction(trimmed, idea.id), resync)
     },
-    [resync, selectedDate, workspaces]
+    [resync]
   )
 
   const updateIdea = useCallback(
     async (id: string, text: string) => {
       const trimmed = text.trim()
-      setWorkspaces((prev) =>
-        prev.map((item) => ({
-          ...item,
-          ideas: trimmed
-            ? item.ideas.map((idea) =>
-                idea.id === id ? { ...idea, text: trimmed } : idea
-              )
-            : item.ideas.filter((idea) => idea.id !== id),
-        }))
+      setIdeas((prev) =>
+        trimmed
+          ? prev.map((idea) =>
+              idea.id === id ? { ...idea, text: trimmed } : idea
+            )
+          : prev.filter((idea) => idea.id !== id)
       )
       persist(() => updateIdeaAction(id, text), resync)
     },
@@ -395,12 +375,7 @@ export function useTasks() {
 
   const deleteIdea = useCallback(
     async (id: string) => {
-      setWorkspaces((prev) =>
-        prev.map((item) => ({
-          ...item,
-          ideas: item.ideas.filter((idea) => idea.id !== id),
-        }))
-      )
+      setIdeas((prev) => prev.filter((idea) => idea.id !== id))
       persist(() => deleteIdeaAction(id), resync)
     },
     [resync]

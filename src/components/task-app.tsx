@@ -254,10 +254,21 @@ export function TaskApp() {
                 />
               </div>
               {ready ? (
-                <EmptyWorkspace
-                  isToday={isToday}
-                  onCreate={createWorkspace}
-                />
+                <div className="flex min-h-0 flex-1 flex-col gap-2">
+                  <EmptyWorkspace
+                    isToday={isToday}
+                    onCreate={createWorkspace}
+                  />
+                  <div className="flex h-[4.25rem] w-full shrink-0 flex-col overflow-hidden @min-[860px]/main:h-auto @min-[860px]/main:max-h-[min(42vh,320px)]">
+                    <IdeasList
+                      ideas={ideas}
+                      onUpdate={updateIdea}
+                      onDelete={deleteIdea}
+                      onCapture={() => setNotesOpen(true)}
+                      className="min-h-0 flex-1"
+                    />
+                  </div>
+                </div>
               ) : (
                 <LoadingState />
               )}
@@ -307,8 +318,8 @@ export function TaskApp() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this workspace?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the workspace and every task and idea inside it for{" "}
-              {formatLongDate(activeDate)}.
+              This removes the workspace and every task inside it for{" "}
+              {formatLongDate(activeDate)}. Ideas stay in your vault.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -506,6 +517,21 @@ function WorkspaceHeader({
                 <Button
                   type="button"
                   variant="ghost"
+                  aria-label="Ideas"
+                  className="rounded-full text-muted-foreground hover:text-foreground"
+                  size="icon"
+                  onClick={onOpenIdeas}
+                >
+                  <Lightbulb />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ideas</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
                   size="icon"
                   aria-label="Quick note"
                   className="rounded-full text-muted-foreground hover:text-foreground"
@@ -549,8 +575,8 @@ function EmptyWorkspace({
         {isToday ? "Start today's workspace" : "Create a workspace"}
       </p>
       <p className="mt-1.5 max-w-[280px] text-[13px] leading-relaxed text-muted-foreground">
-        A workspace holds the tasks and ideas for this day. Press ⌘I to
-        capture a thought.
+        A workspace holds the tasks for this day. Ideas live in one shared
+        vault — press ⌘I anytime to capture a thought.
       </p>
       <Button
         type="button"
