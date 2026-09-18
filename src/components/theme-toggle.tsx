@@ -24,8 +24,12 @@ function useMounted() {
 export function ThemeToggle() {
   const mounted = useMounted()
   const { resolvedTheme, setTheme } = useTheme()
-  const isDark = resolvedTheme === "dark"
-  const label = isDark ? "Switch to light theme" : "Switch to dark theme"
+  const isDark = mounted && resolvedTheme === "dark"
+  const label = !mounted
+    ? "Toggle theme"
+    : isDark
+      ? "Switch to light theme"
+      : "Switch to dark theme"
 
   return (
     <Tooltip>
@@ -48,7 +52,7 @@ export function ThemeToggle() {
           )}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{mounted ? label : "Theme"}</TooltipContent>
+      <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   )
 }

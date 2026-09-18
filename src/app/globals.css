@@ -126,23 +126,22 @@
   }
 }
 
-@keyframes mintask-wave {
+@keyframes mintask-edge-wave {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
   to {
-    transform: translate3d(-50%, 0, 0);
+    transform: translate3d(0, -50%, 0);
   }
 }
 
-.mintask-wave {
-  animation: mintask-wave 8s linear infinite;
-}
-
-.mintask-wave-slow {
-  animation: mintask-wave 13s linear infinite reverse;
+.mintask-edge-wave {
+  animation: mintask-edge-wave 3.2s linear infinite;
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mintask-wave,
-  .mintask-wave-slow {
+  .mintask-edge-wave {
     animation: none;
   }
 }

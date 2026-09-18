@@ -1,6 +1,6 @@
 "use client"
 
-import { getDayProgress, type Task } from "@/lib/tasks"
+import { getDayProgress, type DayProgress, type Task } from "@/lib/tasks"
 import { surfaceClass } from "@/lib/surface"
 import { cn } from "@/lib/utils"
 
@@ -15,76 +15,132 @@ export function DayProgressCard({
 }: DayProgressCardProps) {
   const progress = getDayProgress(tasks)
   const empty = progress.leafTotal === 0
+  const percent = empty ? 0 : progress.percent
+  const clip =
+    percent <= 0 ? undefined : (`inset(0 ${100 - percent}% 0 0)` as const)
 
   return (
     <section
       className={cn(surfaceClass, "relative px-5 py-4 sm:px-6 sm:py-5")}
     >
-      <WaveFill percent={empty ? 0 : progress.percent} />
-      <div className="relative flex items-center gap-4">
-        <ProgressRing percent={progress.percent} />
-
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-medium tracking-[0.04em] text-muted-foreground uppercase">
-            {label}
-          </p>
-          <p className="mt-1 text-[15px] font-semibold tracking-[-0.02em] text-foreground">
-            {empty
-              ? "Nothing logged yet"
-              : `${progress.taskCompleted} of ${progress.taskTotal} tasks complete`}
-          </p>
-          <p className="mt-1.5 text-[12px] text-muted-foreground">
-            {empty
-              ? "Add a task to start measuring the day."
-              : progress.leafTotal === progress.taskTotal
-                ? `${progress.percent}% of the day`
-                : `${progress.leafCompleted} of ${progress.leafTotal} steps`}
-          </p>
-        </div>
+      <div className="relative z-0">
+        <CardBody
+          progress={progress}
+          empty={empty}
+          percent={percent}
+          label={label}
+          inverted={false}
+        />
       </div>
+
+      {percent > 0 ? (
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 flex transition-[width] duration-500 ease-out"
+            style={{ width: `${percent}%` }}
+          >
+            <div className="min-w-0 flex-1 bg-neutral-900 dark:bg-white/80" />
+            <div className="relative h-full w-6 shrink-0 overflow-hidden">
+              <div className="mintask-edge-wave absolute inset-x-0 top-0 h-[200%] w-full">
+                <svg
+                  viewBox="0 0 24 200"
+                  preserveAspectRatio="none"
+                  className="h-full w-full"
+                >
+                  <path
+                    d="M0 0 H10 C20 16.67 0 33.33 10 50 C20 66.67 0 83.33 10 100 C20 116.67 0 133.33 10 150 C20 166.67 0 183.33 10 200 H0 Z"
+                    className="fill-neutral-900 dark:fill-white/80"
+                  />
+                </svg>
+              </div>
+            </div>
+          </div>
+          {clip ? (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-20 px-5 py-4 sm:px-6 sm:py-5"
+              style={{ clipPath: clip }}
+            >
+              <CardBody
+                progress={progress}
+                empty={empty}
+                percent={percent}
+                label={label}
+                inverted
+              />
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </section>
   )
 }
 
-function WaveFill({ percent }: { percent: number }) {
-  if (percent <= 0) return null
-
+function CardBody({
+  progress,
+  empty,
+  percent,
+  label,
+  inverted,
+}: {
+  progress: DayProgress
+  empty: boolean
+  percent: number
+  label: string
+  inverted: boolean
+}) {
   return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-x-0 bottom-0 transition-[height] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
-      style={{ height: `${percent}%` }}
-    >
-      <div className="absolute inset-x-0 top-[14px] bottom-0 bg-foreground/[0.07] dark:bg-foreground/[0.11]" />
-      <div className="absolute top-0 left-0 h-7 w-full -translate-y-1/2">
-        <svg
-          viewBox="0 0 480 40"
-          preserveAspectRatio="none"
-          className="mintask-wave h-full w-[200%]"
+    <div className="relative flex items-center gap-4">
+      <ProgressRing percent={percent} inverted={inverted} />
+
+      <div className="min-w-0 flex-1">
+        <p
+          className={cn(
+            "text-[11px] font-medium tracking-[0.04em] uppercase",
+            inverted
+              ? "text-white/65 dark:text-black/55"
+              : "text-muted-foreground"
+          )}
         >
-          <path
-            d="M0 20 C 40 6, 80 6, 120 20 C 160 34, 200 34, 240 20 C 280 6, 320 6, 360 20 C 400 34, 440 34, 480 20 V40 H0 Z"
-            className="fill-foreground/[0.07] dark:fill-foreground/[0.11]"
-          />
-        </svg>
-      </div>
-      <div className="absolute top-0 left-0 h-6 w-full -translate-y-[40%]">
-        <svg
-          viewBox="0 0 480 40"
-          preserveAspectRatio="none"
-          className="mintask-wave-slow h-full w-[200%]"
+          {label}
+        </p>
+        <p
+          className={cn(
+            "mt-1 text-[15px] font-semibold tracking-[-0.02em]",
+            inverted ? "text-white dark:text-black" : "text-foreground"
+          )}
         >
-          <path
-            d="M0 22 C 50 10, 90 10, 140 22 C 190 34, 230 34, 280 22 C 330 10, 370 10, 420 22 C 450 34, 470 34, 480 22 V40 H0 Z"
-            className="fill-foreground/[0.045] dark:fill-foreground/[0.07]"
-          />
-        </svg>
+          {empty
+            ? "Nothing logged yet"
+            : `${progress.taskCompleted} of ${progress.taskTotal} tasks complete`}
+        </p>
+        <p
+          className={cn(
+            "mt-1.5 text-[12px]",
+            inverted
+              ? "text-white/60 dark:text-black/50"
+              : "text-muted-foreground"
+          )}
+        >
+          {empty
+            ? "Add a task to start measuring the day."
+            : progress.leafTotal === progress.taskTotal
+              ? `${percent}% of the day`
+              : `${progress.leafCompleted} of ${progress.leafTotal} steps`}
+        </p>
       </div>
     </div>
   )
 }
 
-function ProgressRing({ percent }: { percent: number }) {
+function ProgressRing({
+  percent,
+  inverted,
+}: {
+  percent: number
+  inverted: boolean
+}) {
   const size = 72
   const stroke = 6
   const radius = (size - stroke) / 2
@@ -105,7 +161,9 @@ function ProgressRing({ percent }: { percent: number }) {
           cy={size / 2}
           r={radius}
           fill="none"
-          className="stroke-foreground/10"
+          className={
+            inverted ? "stroke-white/25 dark:stroke-black/20" : "stroke-foreground/10"
+          }
           strokeWidth={stroke}
         />
         <circle
@@ -113,15 +171,22 @@ function ProgressRing({ percent }: { percent: number }) {
           cy={size / 2}
           r={radius}
           fill="none"
-          className="stroke-foreground"
+          className={inverted ? "stroke-white dark:stroke-black" : "stroke-foreground"}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 300ms cubic-bezier(0.22, 1, 0.36, 1)" }}
+          style={{
+            transition: "stroke-dashoffset 300ms cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
         />
       </svg>
-      <span className="absolute inset-0 grid place-items-center text-[13px] font-semibold tabular-nums tracking-tight text-foreground">
+      <span
+        className={cn(
+          "absolute inset-0 grid place-items-center text-[13px] font-semibold tabular-nums tracking-tight",
+          inverted ? "text-white dark:text-black" : "text-foreground"
+        )}
+      >
         {percent}%
       </span>
     </div>
