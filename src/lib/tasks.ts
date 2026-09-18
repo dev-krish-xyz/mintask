@@ -1,4 +1,4 @@
-import { formatWeekday } from "@/lib/dates"
+import { addDaysToKey, formatWeekday } from "@/lib/dates"
 
 export type Subtask = {
   id: string
@@ -12,6 +12,14 @@ export type Task = {
   completed: boolean
   subtasks: Subtask[]
   createdAt: number
+  sourceTaskId?: string
+}
+
+export const SYNC_LOOKBACK_DAYS = 7
+
+export type UnfinishedGroup = {
+  date: string
+  tasks: Task[]
 }
 
 export type Idea = {
@@ -112,6 +120,43 @@ export function getTaskProgress(task: Task): TaskProgress {
   }
 }
 
+export function taskRootId(task: Pick<Task, "id" | "sourceTaskId">) {
+  return task.sourceTaskId ?? task.id
+}
+
+export function isTaskIncomplete(task: Task) {
+  if (!task.title.trim()) return false
+  return !getTaskProgress(task).isComplete
+}
+
+export function unfinishedGroupsForDate(
+  workspaces: Workspace[],
+  currentDate: string,
+  days = SYNC_LOOKBACK_DAYS
+): UnfinishedGroup[] {
+  if (!currentDate) return []
+
+  const from = addDaysToKey(currentDate, -days)
+  const already = new Set<string>()
+  const current = workspaces.find((item) => item.date === currentDate)
+  for (const task of current?.tasks ?? []) {
+    already.add(taskRootId(task))
+    already.add(task.id)
+  }
+
+  return workspaces
+    .filter((item) => item.date >= from && item.date < currentDate)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .flatMap((workspace) => {
+      const tasks = workspace.tasks.filter((task) => {
+        if (!isTaskIncomplete(task)) return false
+        const root = taskRootId(task)
+        return !already.has(root) && !already.has(task.id)
+      })
+      return tasks.length > 0 ? [{ date: workspace.date, tasks }] : []
+    })
+}
+
 export function getDayProgress(tasks: Task[]): DayProgress {
   const taskTotal = tasks.length
   const taskCompleted = tasks.filter((task) => getTaskProgress(task).isComplete).length
@@ -189,6 +234,9 @@ export function isTask(value: unknown): value is Task {
   if (typeof task.completed !== "boolean") return false
   if (typeof task.createdAt !== "number") return false
   if (!Array.isArray(task.subtasks)) return false
+  if (task.sourceTaskId != null && typeof task.sourceTaskId !== "string") {
+    return false
+  }
 
   return task.subtasks.every(isSubtask)
 }

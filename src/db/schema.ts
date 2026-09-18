@@ -36,6 +36,7 @@ export const tasks = pgTable(
       .references(() => workspaces.id, { onDelete: "cascade" }),
     title: text("title").notNull().default(""),
     completed: boolean("completed").notNull().default(false),
+    sourceTaskId: uuid("source_task_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -15,6 +15,7 @@ import {
   listWorkspaces,
   renameWorkspaceAction,
   reorderSubtasksAction,
+  syncUnfinishedTasksAction,
   toggleSubtaskAction,
   toggleTaskAction,
   updateIdeaAction,
@@ -27,6 +28,7 @@ import {
   createSubtask,
   createTask,
   createWorkspace,
+  taskRootId,
   type Task,
   type Workspace,
 } from "@/lib/tasks"
@@ -404,6 +406,90 @@ export function useTasks() {
     [resync]
   )
 
+  const syncUnfinished = useCallback(
+    async (sources: Task[]) => {
+      const date = selectedDate || todayKey()
+      const existing = workspaces.find((item) => item.date === date)
+      const present = new Set<string>()
+      for (const task of existing?.tasks ?? []) {
+        present.add(taskRootId(task))
+        present.add(task.id)
+      }
+
+      const copies: Task[] = []
+      const payload: {
+        id: string
+        sourceTaskId: string
+        subtaskIds: string[]
+      }[] = []
+
+      for (const source of sources) {
+        const root = taskRootId(source)
+        if (present.has(root) || present.has(source.id)) continue
+        present.add(root)
+        present.add(source.id)
+
+        const subtasks = source.subtasks.map((subtask) => ({
+          id: crypto.randomUUID(),
+          title: subtask.title,
+          completed: subtask.completed,
+        }))
+        const copy: Task = {
+          id: crypto.randomUUID(),
+          title: source.title,
+          completed:
+            subtasks.length > 0
+              ? subtasks.every((item) => item.completed)
+              : false,
+          createdAt: Date.now(),
+          sourceTaskId: root,
+          subtasks,
+        }
+        copies.push(copy)
+        payload.push({
+          id: copy.id,
+          sourceTaskId: source.id,
+          subtaskIds: subtasks.map((item) => item.id),
+        })
+      }
+
+      if (copies.length === 0) return
+
+      if (existing) {
+        setWorkspaces((prev) =>
+          patchWorkspace(prev, existing.id, (item) => ({
+            ...item,
+            tasks: [...copies, ...item.tasks],
+          }))
+        )
+        persist(
+          () => syncUnfinishedTasksAction(date, existing.id, payload),
+          resync
+        )
+        return
+      }
+
+      const created = createWorkspace(date, copies)
+      setWorkspaces((prev) => {
+        if (prev.some((item) => item.date === date)) {
+          const found = prev.find((item) => item.date === date)
+          if (!found) return prev
+          return patchWorkspace(prev, found.id, (item) => ({
+            ...item,
+            tasks: [...copies, ...item.tasks],
+          }))
+        }
+        return [created, ...prev]
+      })
+      persist(
+        () => syncUnfinishedTasksAction(date, created.id, payload),
+        resync
+      )
+      setSelectedDate(date)
+    },
+    [resync, selectedDate, workspaces]
+  )
+
   return {
     ready,
     workspaces,
@@ -427,5 +513,6 @@ export function useTasks() {
     addIdea,
     updateIdea,
     deleteIdea,
+    syncUnfinished,
   }
 }

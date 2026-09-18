@@ -13,6 +13,7 @@ type TaskRow = {
   title: string
   completed: boolean
   createdAt: Date
+  sourceTaskId: string | null
 }
 
 type SubtaskRow = {
@@ -62,6 +63,7 @@ export function assembleWorkspaces(
       completed: row.completed,
       createdAt: row.createdAt.getTime(),
       subtasks: subtasksByTask.get(row.id) ?? [],
+      ...(row.sourceTaskId ? { sourceTaskId: row.sourceTaskId } : {}),
     }
     const list = tasksByWorkspace.get(row.workspaceId)
     if (list) list.push(mapped)

@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { CalendarDays, Lightbulb, PenLine, Plus, Trash2 } from "lucide-react"
+import { CalendarDays, Import, Lightbulb, PenLine, Plus, Trash2 } from "lucide-react"
 
 import { DayProgressCard } from "@/components/day-progress"
 import { EditableTitle } from "@/components/editable-title"
 import { IdeasList } from "@/components/ideas-list"
 import { MonthHeatmap } from "@/components/month-heatmap"
 import { NotesPad } from "@/components/notes-pad"
+import { SyncUnfinished } from "@/components/sync-unfinished"
 import { TaskItem } from "@/components/task-item"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { WorkspaceSidebar } from "@/components/workspace-sidebar"
@@ -63,6 +64,7 @@ export function TaskApp() {
     addIdea,
     updateIdea,
     deleteIdea,
+    syncUnfinished,
   } = useTasks()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -70,6 +72,7 @@ export function TaskApp() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [notesOpen, setNotesOpen] = useState(false)
   const [ideasOpen, setIdeasOpen] = useState(false)
+  const [syncOpen, setSyncOpen] = useState(false)
 
   const createTask = useCallback(async () => {
     if (!workspace) return
@@ -156,6 +159,7 @@ export function TaskApp() {
                   onOpenCalendar={() => setCalendarOpen(true)}
                   onOpenNotes={() => setNotesOpen(true)}
                   onOpenIdeas={() => setIdeasOpen(true)}
+                  onOpenSync={() => setSyncOpen(true)}
                   onDelete={() => setConfirmDelete(true)}
                   onNewTask={createTask}
                 />
@@ -244,6 +248,7 @@ export function TaskApp() {
                   onOpenCalendar={() => setCalendarOpen(true)}
                   onOpenNotes={() => setNotesOpen(true)}
                   onOpenIdeas={() => setIdeasOpen(true)}
+                  onOpenSync={() => setSyncOpen(true)}
                   onDelete={() => {}}
                   onNewTask={createWorkspace}
                 />
@@ -282,6 +287,14 @@ export function TaskApp() {
           />
         </SheetContent>
       </Sheet>
+
+      <SyncUnfinished
+        open={syncOpen}
+        onOpenChange={setSyncOpen}
+        currentDate={activeDate}
+        workspaces={workspaces}
+        onSync={syncUnfinished}
+      />
 
       <NotesPad
         open={notesOpen}
@@ -327,6 +340,7 @@ function WorkspaceHeader({
   onOpenCalendar,
   onOpenNotes,
   onOpenIdeas,
+  onOpenSync,
   onDelete,
   onNewTask,
 }: {
@@ -340,6 +354,7 @@ function WorkspaceHeader({
   onOpenCalendar: () => void
   onOpenNotes: () => void
   onOpenIdeas: () => void
+  onOpenSync: () => void
   onDelete: () => void
   onNewTask: () => void
 }) {
@@ -395,6 +410,21 @@ function WorkspaceHeader({
         </div>
         {workspace ? (
           <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label="Sync unfinished tasks"
+                  className="h-8 rounded-full px-2.5 text-muted-foreground hover:text-foreground"
+                  onClick={onOpenSync}
+                >
+                  <Import />
+                  <span className="hidden min-[520px]:inline">Sync</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sync unfinished</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -456,6 +486,21 @@ function WorkspaceHeader({
           </>
         ) : (
           <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label="Sync unfinished tasks"
+                  className="rounded-full text-muted-foreground hover:text-foreground"
+                  size="icon"
+                  onClick={onOpenSync}
+                >
+                  <Import />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sync unfinished</TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

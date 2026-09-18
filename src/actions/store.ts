@@ -6,8 +6,13 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { getDb } from "@/db"
 import { assembleWorkspaces } from "@/db/map"
 import { ideas, subtasks, tasks, workspaces } from "@/db/schema"
-import { formatWeekday } from "@/lib/dates"
-import type { Workspace } from "@/lib/tasks"
+import { addDaysToKey, formatWeekday } from "@/lib/dates"
+import {
+  getTaskProgress,
+  SYNC_LOOKBACK_DAYS,
+  taskRootId,
+  type Workspace,
+} from "@/lib/tasks"
 
 async function requireUserId() {
   const { userId } = await auth()
@@ -263,6 +268,142 @@ export async function reorderSubtasksAction(
     ) AS v(id, sort_order)
     WHERE s.id = v.id AND s.task_id = ${taskId}::uuid
   `)
+}
+
+export async function syncUnfinishedTasksAction(
+  date: string,
+  workspaceId: string,
+  copies: {
+    id: string
+    sourceTaskId: string
+    subtaskIds: string[]
+  }[]
+) {
+  const userId = await requireUserId()
+  if (copies.length === 0) return
+
+  const workspace = await getOrCreateWorkspace(userId, date, workspaceId)
+  const from = addDaysToKey(date, -SYNC_LOOKBACK_DAYS)
+  const sourceIds = [...new Set(copies.map((copy) => copy.sourceTaskId))]
+  const db = getDb()
+
+  const [existingRows, sourceRows] = await Promise.all([
+    db
+      .select({
+        id: tasks.id,
+        sourceTaskId: tasks.sourceTaskId,
+      })
+      .from(tasks)
+      .where(eq(tasks.workspaceId, workspace.id)),
+    db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        completed: tasks.completed,
+        sourceTaskId: tasks.sourceTaskId,
+        date: workspaces.date,
+      })
+      .from(tasks)
+      .innerJoin(workspaces, eq(workspaces.id, tasks.workspaceId))
+      .where(and(eq(workspaces.userId, userId), inArray(tasks.id, sourceIds))),
+  ])
+
+  const already = new Set<string>()
+  for (const row of existingRows) {
+    already.add(row.id)
+    if (row.sourceTaskId) already.add(row.sourceTaskId)
+  }
+
+  const sourceById = new Map(sourceRows.map((row) => [row.id, row]))
+  const sourceSubtaskRows =
+    sourceIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(subtasks)
+          .where(inArray(subtasks.taskId, sourceIds))
+          .orderBy(asc(subtasks.sortOrder))
+
+  const subtasksBySource = new Map<
+    string,
+    { title: string; completed: boolean }[]
+  >()
+  for (const row of sourceSubtaskRows) {
+    const list = subtasksBySource.get(row.taskId)
+    const mapped = { title: row.title, completed: row.completed }
+    if (list) list.push(mapped)
+    else subtasksBySource.set(row.taskId, [mapped])
+  }
+
+  const taskValues: {
+    id: string
+    workspaceId: string
+    title: string
+    completed: boolean
+    sourceTaskId: string
+  }[] = []
+  const subtaskValues: {
+    id: string
+    taskId: string
+    title: string
+    completed: boolean
+    sortOrder: number
+  }[] = []
+
+  for (const copy of copies) {
+    const source = sourceById.get(copy.sourceTaskId)
+    if (!source) continue
+    if (source.date < from || source.date >= date) continue
+
+    const sourceSubtasks = subtasksBySource.get(source.id) ?? []
+    const incomplete = !getTaskProgress({
+      id: source.id,
+      title: source.title,
+      completed: source.completed,
+      createdAt: 0,
+      subtasks: sourceSubtasks.map((item, index) => ({
+        id: String(index),
+        title: item.title,
+        completed: item.completed,
+      })),
+    }).isComplete
+    if (!source.title.trim() || !incomplete) continue
+
+    const root = taskRootId({
+      id: source.id,
+      sourceTaskId: source.sourceTaskId ?? undefined,
+    })
+    if (already.has(source.id) || already.has(root)) continue
+
+    already.add(source.id)
+    already.add(root)
+
+    const nextSubtasks = sourceSubtasks.map((item, index) => ({
+      id: copy.subtaskIds[index] ?? crypto.randomUUID(),
+      taskId: copy.id,
+      title: item.title,
+      completed: item.completed,
+      sortOrder: index,
+    }))
+    const completed =
+      nextSubtasks.length > 0 && nextSubtasks.every((item) => item.completed)
+
+    taskValues.push({
+      id: copy.id,
+      workspaceId: workspace.id,
+      title: source.title,
+      completed,
+      sourceTaskId: root,
+    })
+    subtaskValues.push(...nextSubtasks)
+  }
+
+  if (taskValues.length === 0) return
+
+  await db.insert(tasks).values(taskValues).onConflictDoNothing()
+  if (subtaskValues.length > 0) {
+    await db.insert(subtasks).values(subtaskValues).onConflictDoNothing()
+  }
 }
 
 export async function addIdeaAction(
